@@ -1,7 +1,7 @@
 """
 Core agent module for Pygmalion.
 
-Phase 3: Built-in tools for file operations and shell commands.
+Phase 4: Permission modes and autonomy configuration.
 
 SDK CONCEPTS EXPLAINED:
 -----------------------
@@ -18,11 +18,16 @@ The Claude Agent SDK provides two main ways to interact with Claude:
    - Essential for iterative design work where you refine outputs
    - Requires explicit connection management (connect/disconnect)
 
-3. Built-in Tools - File & shell access (Phase 3) ← NEW
+3. Built-in Tools - File & shell access (Phase 3)
    - Claude can create, read, and edit files
    - Claude can run shell commands (Inkscape, ImageMagick, etc.)
    - Claude can search the web for design inspiration
    - Tools are enabled via the allowed_tools parameter
+
+4. Permission Modes - Autonomy levels (Phase 4) ← NEW
+   - Control how much Claude can do without asking permission
+   - Three modes: APPROVAL, AUTO, FULL_AUTO
+   - Configured via the autonomy_mode parameter
 
 BUILT-IN TOOLS EXPLAINED:
 -------------------------
@@ -64,6 +69,29 @@ The working_dir parameter scopes where Claude can operate:
 - Provides safety by limiting Claude's file access
 - Defaults to current directory if not specified
 
+PERMISSION MODES (AUTONOMY):
+----------------------------
+The autonomy_mode parameter controls how much Claude can do without asking:
+
+  APPROVAL (default) - permission_mode="default"
+    Claude asks before file edits. Safest option.
+    Good for: Learning, sensitive projects, reviewing changes
+
+  AUTO - permission_mode="acceptEdits"
+    Claude auto-approves file edits but asks for dangerous ops.
+    Good for: Rapid prototyping, experienced users
+
+  FULL_AUTO - permission_mode="bypassPermissions"
+    No permission prompts at all. Use with caution!
+    Good for: Automation, scripts, fully trusted workflows
+
+Example:
+  # Safe mode - review all changes
+  session = DesignSession(autonomy_mode=AutonomyMode.APPROVAL)
+
+  # Fast mode - auto-approve file edits
+  session = DesignSession(autonomy_mode=AutonomyMode.AUTO)
+
 Message Types:
 - AssistantMessage: Claude's responses containing content blocks
 - TextBlock: Plain text within a message
@@ -86,6 +114,8 @@ from claude_agent_sdk import (
     query,
 )
 
+from pygmalion.config import AutonomyMode, get_default_autonomy_mode
+
 # Export public API
 __all__ = [
     # Phase 1: One-off queries
@@ -93,6 +123,8 @@ __all__ = [
     "simple_query",
     # Phase 2: Persistent sessions
     "DesignSession",
+    # Phase 4: Autonomy modes
+    "AutonomyMode",
     # Error types
     "ClaudeSDKError",
     "CLINotFoundError",
@@ -201,6 +233,7 @@ class DesignSession:
         self,
         working_dir: str | None = None,
         allowed_tools: list[str] | None = None,
+        autonomy_mode: AutonomyMode | None = None,
     ):
         """
         Initialize a new design session.
@@ -219,9 +252,14 @@ class DesignSession:
                           - Grep: Search file contents
                           - WebSearch: Search the web
                           - WebFetch: Fetch web pages
+            autonomy_mode: How much autonomy Claude has. Defaults to APPROVAL.
+                          - APPROVAL: Ask before file edits (safest)
+                          - AUTO: Auto-approve file edits
+                          - FULL_AUTO: No permission prompts (use with caution)
         """
         self._working_dir = working_dir
         self._allowed_tools = allowed_tools or self.DEFAULT_TOOLS.copy()
+        self._autonomy_mode = autonomy_mode or get_default_autonomy_mode()
         self._client: ClaudeSDKClient | None = None
         self._session_id: str | None = None
         self._message_count = 0
@@ -252,6 +290,11 @@ class DesignSession:
         """Get the list of tools enabled for this session."""
         return self._allowed_tools.copy()
 
+    @property
+    def autonomy_mode(self) -> AutonomyMode:
+        """Get the autonomy mode for this session."""
+        return self._autonomy_mode
+
     async def connect(self) -> None:
         """
         Establish the connection to Claude.
@@ -266,15 +309,21 @@ class DesignSession:
         if self._is_connected:
             return
 
-        # Configure the client options with tools
+        # Configure the client options with tools and permissions
         # allowed_tools controls what Claude can do:
         # - File tools (Read/Write/Edit): Create and modify design files
         # - Bash: Run CLI tools like Inkscape, ImageMagick
         # - Search tools (Glob/Grep): Find files and content
         # - Web tools (WebSearch/WebFetch): Research and inspiration
+        #
+        # permission_mode controls autonomy:
+        # - "default": Ask before file edits (APPROVAL mode)
+        # - "acceptEdits": Auto-approve file changes (AUTO mode)
+        # - "bypassPermissions": No prompts at all (FULL_AUTO mode)
         options = ClaudeAgentOptions(
             cwd=self._working_dir,
             allowed_tools=self._allowed_tools,
+            permission_mode=self._autonomy_mode.value,
         )
 
         # Create and connect the client

@@ -1,45 +1,46 @@
 """
 Pygmalion CLI - Main entry point.
 
-Phase 3: Built-in tools for file operations and shell commands.
+Phase 4: Permission modes and autonomy configuration.
 
 This module provides a command-line interface for Pygmalion that:
 - Maintains conversation context across multiple exchanges
 - Enables Claude to create and edit files in your working directory
 - Allows Claude to run shell commands (Inkscape, ImageMagick, etc.)
-- Supports web search for design research and inspiration
+- Supports configurable autonomy levels for different workflows
 
-TOOLS ENABLED:
---------------
-Claude can now actually CREATE your designs, not just describe them:
+AUTONOMY MODES:
+---------------
+Control how much Claude can do without asking permission:
 
-  FILE TOOLS:
-  - Read/Write/Edit files (HTML, CSS, SVG, images)
+  APPROVAL (default):
+    Claude asks before making file changes.
+    Best for: Learning, reviewing changes, sensitive projects
 
-  SHELL TOOLS:
-  - Run commands like inkscape, convert (ImageMagick), git
+  AUTO:
+    Claude automatically proceeds with file edits.
+    Best for: Rapid prototyping, experienced users
 
-  WEB TOOLS:
-  - Search the web for design inspiration
-  - Fetch content from URLs
+  FULL_AUTO:
+    No permission prompts at all.
+    Best for: Automation, scripts (use with caution!)
 
-WORKING DIRECTORY:
-------------------
-All file operations happen in the current directory where you run pygmalion.
-This keeps your designs organized and limits Claude's file access for safety.
+Usage:
+  $ pygmalion                    # Start with default (approval) mode
+  $ pygmalion --mode auto        # Start with auto mode
+  $ PYGMALION_AUTONOMY_MODE=auto pygmalion  # Via environment
 
-Example workflow:
-  $ mkdir my-website && cd my-website
-  $ pygmalion
-  🎨 You: Create a landing page for a coffee shop with a logo
-  🤖 Pygmalion: [Creates index.html, styles.css, logo.svg]
+Commands:
+  /mode [approval|auto|full_auto]  - View or change autonomy mode
+  /status                          - Show session info including mode
 """
 
 import asyncio
 import os
 import sys
 
-from pygmalion.agent import DesignSession
+from pygmalion.agent import AutonomyMode, DesignSession
+from pygmalion.config import get_default_autonomy_mode
 
 
 def print_banner():
@@ -66,20 +67,21 @@ def print_help():
     help_text = """
 Available Commands:
   /help     - Show this help message
-  /status   - Show current session info (directory, tools, messages)
+  /status   - Show current session info (mode, directory, tools)
+  /mode     - View or change autonomy mode
   /new      - Start a new session (clears context)
   /quit     - Exit Pygmalion
   /clear    - Clear the screen
 
-Tools Available:
-  Claude can create and edit files, run shell commands, and search the web.
-  All files are created in your current working directory.
+Autonomy Modes (/mode):
+  approval  - Ask before file edits (safest, default)
+  auto      - Auto-approve file edits (faster)
+  full_auto - No prompts at all (use with caution!)
 
 Example prompts:
   - "Create a responsive landing page for a bakery"
   - "Design an SVG logo with geometric shapes"
   - "Make a color palette and save it as CSS variables"
-  - "Create a button component and show me what it looks like"
 
 Iterative workflow:
   1. "Create a navigation bar with Home, About, Contact links"
@@ -93,40 +95,68 @@ Iterative workflow:
 def print_status(session: DesignSession, working_dir: str):
     """Display current session information."""
     tools_list = ", ".join(session.allowed_tools)
+    mode_name = session.autonomy_mode.name
+    mode_desc = {
+        "APPROVAL": "asks before file edits",
+        "AUTO": "auto-approves file edits",
+        "FULL_AUTO": "no permission prompts",
+    }.get(mode_name, "")
+
     status = f"""
 Session Status:
   Connected:   {session.is_connected}
   Messages:    {session.message_count}
+  Mode:        {mode_name} ({mode_desc})
   Working Dir: {working_dir}
   Tools:       {tools_list}
 
-Claude can create/edit files in the working directory and run shell commands.
-Use /new to start fresh with a new session.
+Use /mode to change autonomy level, /new to start fresh.
 """
     print(status)
 
 
+def print_mode_help():
+    """Display autonomy mode information."""
+    mode_help = """
+Autonomy Modes:
+  approval   - Claude asks before making file changes (default, safest)
+  auto       - Claude auto-approves file edits (faster prototyping)
+  full_auto  - No permission prompts at all (use with caution!)
+
+Usage:
+  /mode            - Show current mode
+  /mode auto       - Switch to auto mode
+  /mode approval   - Switch to approval mode
+
+Note: Changing mode requires starting a new session.
+"""
+    print(mode_help)
+
+
 async def run_cli():
     """
-    Main CLI loop for Pygmalion with persistent session and tools.
+    Main CLI loop for Pygmalion with persistent session, tools, and autonomy.
 
     This creates a DesignSession that:
     - Maintains context throughout the entire interaction
     - Can create and edit files in the current working directory
     - Can run shell commands for design tools
-    - Can search the web for inspiration
+    - Operates at the configured autonomy level
     """
     print_banner()
 
     # Use current working directory for all file operations
     working_dir = os.getcwd()
 
+    # Get default autonomy mode (from env var or default to APPROVAL)
+    autonomy_mode = get_default_autonomy_mode()
+
     print("Type /help for available commands, or just start designing!")
     print(f"Working directory: {working_dir}")
-    print("(Claude can create files here and run design tools)\n")
+    print(f"Mode: {autonomy_mode.name} (use /mode to change)\n")
 
-    # Create a session with the working directory
-    session = DesignSession(working_dir=working_dir)
+    # Create a session with the working directory and autonomy mode
+    session = DesignSession(working_dir=working_dir, autonomy_mode=autonomy_mode)
 
     try:
         await session.connect()
@@ -146,7 +176,9 @@ async def run_cli():
 
                 # Handle commands
                 if user_input.startswith("/"):
-                    command = user_input.lower().split()[0]  # Get first word
+                    parts = user_input.lower().split()
+                    command = parts[0]
+                    args = parts[1:] if len(parts) > 1 else []
 
                     if command in ("/quit", "/exit", "/q"):
                         print("\nGoodbye! Happy designing!")
@@ -160,11 +192,40 @@ async def run_cli():
                         print_status(session, working_dir)
                         continue
 
+                    elif command == "/mode":
+                        if not args:
+                            # Show current mode and help
+                            print(f"\nCurrent mode: {autonomy_mode.name}")
+                            print_mode_help()
+                        else:
+                            # Try to change mode
+                            try:
+                                new_mode = AutonomyMode.from_string(args[0])
+                                if new_mode != autonomy_mode:
+                                    autonomy_mode = new_mode
+                                    print(f"\nMode changed to: {autonomy_mode.name}")
+                                    print("Starting new session with new mode...")
+                                    await session.disconnect()
+                                    session = DesignSession(
+                                        working_dir=working_dir,
+                                        autonomy_mode=autonomy_mode,
+                                    )
+                                    await session.connect()
+                                    print("✓ New session started\n")
+                                else:
+                                    print(f"\nAlready in {autonomy_mode.name} mode.")
+                            except ValueError as e:
+                                print(f"\n❌ {e}")
+                                print_mode_help()
+                        continue
+
                     elif command == "/new":
                         # Disconnect current session and create a new one
                         print("\nStarting new session...")
                         await session.disconnect()
-                        session = DesignSession(working_dir=working_dir)
+                        session = DesignSession(
+                            working_dir=working_dir, autonomy_mode=autonomy_mode
+                        )
                         await session.connect()
                         print("✓ New session started (context cleared)\n")
                         continue
@@ -173,6 +234,7 @@ async def run_cli():
                         print("\033[2J\033[H", end="")  # ANSI clear screen
                         print_banner()
                         print(f"Working directory: {working_dir}")
+                        print(f"Mode: {autonomy_mode.name}")
                         print(f"(Session active - {session.message_count} messages)\n")
                         continue
 
