@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pygmalion"
+version = "0.1.0"
+description = "AI-powered web and graphic design assistant using Claude Agent SDK"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Brad"}
+]
+keywords = ["ai", "design", "claude", "agent", "web-design", "graphics"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Internet :: WWW/HTTP :: Site Management",
+]
+
+dependencies = [
+    "claude-agent-sdk",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+pdf = ["weasyprint"]
+gemini = ["google-generativeai"]
+dev = ["pytest", "pytest-asyncio", "black", "isort", "flake8"]
+all = ["pygmalion[pdf,gemini,dev]"]
+
+[project.scripts]
+pygmalion = "pygmalion.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pygmalion"]
+
+[tool.black]
+line-length = 88
+target-version = ['py310', 'py311', 'py312']
+
+[tool.isort]
+profile = "black"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
