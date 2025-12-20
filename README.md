@@ -16,7 +16,7 @@ Built for Linux users who prioritize open-source tools and local execution.
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/pygmalion.git
+git clone https://github.com/bbusenius/Pygmalion.git
 cd pygmalion
 
 # Create and activate virtual environment
@@ -60,15 +60,27 @@ python -m pygmalion.main
 
 ### Example Session
 
+Pygmalion maintains conversation context, so you can iterate on designs:
+
 ```
 🎨 You: Create a responsive navigation bar with a logo and three menu items
 
 🤖 Pygmalion: [Claude generates the HTML, CSS, and provides explanations]
+
+🎨 You [1]: Make it sticky at the top of the page
+
+🤖 Pygmalion: [Claude modifies the SAME navigation bar]
+
+🎨 You [2]: Add a dropdown menu under the About link
+
+🤖 Pygmalion: [Claude adds to the existing code]
 ```
 
 ### Commands
 
 - `/help` - Show available commands
+- `/status` - Show current session info (message count)
+- `/new` - Start a new session (clears context)
 - `/quit` - Exit Pygmalion
 - `/clear` - Clear the screen
 
@@ -109,7 +121,7 @@ pygmalion/
 This project is being built incrementally:
 
 - [x] Phase 1: Basic SDK setup with `query()`
-- [ ] Phase 2: Persistent sessions with `ClaudeSDKClient`
+- [x] Phase 2: Persistent sessions with `ClaudeSDKClient`
 - [ ] Phase 3: Built-in tools (Read/Write/Edit/Bash)
 - [ ] Phase 4: Permission modes and autonomy
 - [ ] Phase 5: Inkscape integration
