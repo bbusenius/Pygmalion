@@ -124,14 +124,19 @@ This project is being built incrementally:
 - [x] Phase 2: Persistent sessions with `ClaudeSDKClient`
 - [x] Phase 3: Built-in tools (Read/Write/Edit/Bash)
 - [x] Phase 4: Permission modes and autonomy
-- [ ] Phase 5: Inkscape integration
-- [ ] Phase 6: ImageMagick integration
-- [ ] Phase 7: PDF generation
-- [ ] Phase 8: Optional Gemini integration
-- [ ] Phase 9: Design system prompts
-- [ ] Phase 10: Logging and error handling
-- [ ] Phase 11: CLI polish
-- [ ] Phase 12: Chrome extension workflow
+- [x] Phase 5: Front-end design skill
+- [ ] Phase 6: Inkscape integration
+- [ ] Phase 7: ImageMagick integration
+- [ ] Phase 8: GIMP integration
+- [ ] Phase 9: PDF generation (WeasyPrint)
+- [ ] Phase 10: Optional Gemini integration
+- [ ] Phase 11: GitHub integration
+- [ ] Phase 12: Figma/Canva integration (optional)
+- [ ] Phase 13: Design system prompts
+- [ ] Phase 14: Logging and error handling
+- [ ] Phase 15: CLI polish
+- [ ] Phase 16: Session export
+- [ ] Phase 17: Chrome extension workflow
 
 ## License
 

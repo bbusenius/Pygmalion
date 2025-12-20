@@ -24,10 +24,16 @@ The Claude Agent SDK provides two main ways to interact with Claude:
    - Claude can search the web for design inspiration
    - Tools are enabled via the allowed_tools parameter
 
-4. Permission Modes - Autonomy levels (Phase 4) ← NEW
+4. Permission Modes - Autonomy levels (Phase 4)
    - Control how much Claude can do without asking permission
    - Three modes: APPROVAL, AUTO, FULL_AUTO
    - Configured via the autonomy_mode parameter
+
+5. Skills - Specialized capabilities (Phase 5)
+   - Skills are SKILL.md files that Claude auto-invokes based on context
+   - The frontend-design skill guides production-grade UI generation
+   - Skills are loaded from .claude/skills/ via setting_sources
+   - Requires "Skill" in allowed_tools
 
 BUILT-IN TOOLS EXPLAINED:
 -------------------------
@@ -227,13 +233,19 @@ class DesignSession:
         "Grep",  # Search file contents
         "WebSearch",  # Search the web for design inspiration/research
         "WebFetch",  # Fetch and parse web content
+        "Skill",  # Enable Claude Code skills (e.g., frontend-design)
     ]
+
+    # Default model for high-quality design work
+    # Use Claude Sonnet 4 for best balance of quality and speed
+    DEFAULT_MODEL = "claude-sonnet-4-20250514"
 
     def __init__(
         self,
         working_dir: str | None = None,
         allowed_tools: list[str] | None = None,
         autonomy_mode: AutonomyMode | None = None,
+        model: str | None = None,
     ):
         """
         Initialize a new design session.
@@ -252,14 +264,18 @@ class DesignSession:
                           - Grep: Search file contents
                           - WebSearch: Search the web
                           - WebFetch: Fetch web pages
+                          - Skill: Enable Claude Code skills
             autonomy_mode: How much autonomy Claude has. Defaults to APPROVAL.
                           - APPROVAL: Ask before file edits (safest)
                           - AUTO: Auto-approve file edits
                           - FULL_AUTO: No permission prompts (use with caution)
+            model: Which Claude model to use. Defaults to DEFAULT_MODEL.
+                   Use high-quality models for best design output.
         """
         self._working_dir = working_dir
         self._allowed_tools = allowed_tools or self.DEFAULT_TOOLS.copy()
         self._autonomy_mode = autonomy_mode or get_default_autonomy_mode()
+        self._model = model or self.DEFAULT_MODEL
         self._client: ClaudeSDKClient | None = None
         self._session_id: str | None = None
         self._message_count = 0
@@ -295,6 +311,11 @@ class DesignSession:
         """Get the autonomy mode for this session."""
         return self._autonomy_mode
 
+    @property
+    def model(self) -> str:
+        """Get the model being used for this session."""
+        return self._model
+
     async def connect(self) -> None:
         """
         Establish the connection to Claude.
@@ -309,21 +330,31 @@ class DesignSession:
         if self._is_connected:
             return
 
-        # Configure the client options with tools and permissions
+        # Configure the client options with tools, permissions, and skills
+        #
         # allowed_tools controls what Claude can do:
         # - File tools (Read/Write/Edit): Create and modify design files
         # - Bash: Run CLI tools like Inkscape, ImageMagick
         # - Search tools (Glob/Grep): Find files and content
         # - Web tools (WebSearch/WebFetch): Research and inspiration
+        # - Skill: Enable Claude Code skills (loaded from .claude/skills/)
         #
         # permission_mode controls autonomy:
         # - "default": Ask before file edits (APPROVAL mode)
         # - "acceptEdits": Auto-approve file changes (AUTO mode)
         # - "bypassPermissions": No prompts at all (FULL_AUTO mode)
+        #
+        # setting_sources enables skill loading:
+        # - "user": Load skills from ~/.claude/skills/
+        # - "project": Load skills from .claude/skills/ in working directory
+        #
+        # model selects which Claude model to use for high-quality output
         options = ClaudeAgentOptions(
             cwd=self._working_dir,
             allowed_tools=self._allowed_tools,
             permission_mode=self._autonomy_mode.value,
+            setting_sources=["user", "project"],
+            model=self._model,
         )
 
         # Create and connect the client

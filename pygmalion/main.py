@@ -107,8 +107,10 @@ Session Status:
   Connected:   {session.is_connected}
   Messages:    {session.message_count}
   Mode:        {mode_name} ({mode_desc})
+  Model:       {session.model}
   Working Dir: {working_dir}
   Tools:       {tools_list}
+  Skills:      frontend-design (WCAG 2.1+ compliant)
 
 Use /mode to change autonomy level, /new to start fresh.
 """
