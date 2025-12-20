@@ -122,7 +122,7 @@ This project is being built incrementally:
 
 - [x] Phase 1: Basic SDK setup with `query()`
 - [x] Phase 2: Persistent sessions with `ClaudeSDKClient`
-- [ ] Phase 3: Built-in tools (Read/Write/Edit/Bash)
+- [x] Phase 3: Built-in tools (Read/Write/Edit/Bash)
 - [ ] Phase 4: Permission modes and autonomy
 - [ ] Phase 5: Inkscape integration
 - [ ] Phase 6: ImageMagick integration

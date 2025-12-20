@@ -1,7 +1,7 @@
 """
 Core agent module for Pygmalion.
 
-Phase 2: Persistent sessions with ClaudeSDKClient.
+Phase 3: Built-in tools for file operations and shell commands.
 
 SDK CONCEPTS EXPLAINED:
 -----------------------
@@ -12,49 +12,63 @@ The Claude Agent SDK provides two main ways to interact with Claude:
    - Good for independent tasks
    - Returns an async generator of messages
 
-2. ClaudeSDKClient - Persistent sessions (Phase 2) ← NEW
+2. ClaudeSDKClient - Persistent sessions (Phase 2)
    - Maintains conversation context across multiple exchanges
    - Claude remembers what you discussed previously
    - Essential for iterative design work where you refine outputs
    - Requires explicit connection management (connect/disconnect)
 
-WHY PERSISTENT SESSIONS MATTER FOR DESIGN:
-------------------------------------------
-Design is inherently iterative. You might say:
-  1. "Create a navigation bar"
-  2. "Make it sticky"
-  3. "Add a dropdown for the Products menu"
-  4. "Change the color scheme to dark mode"
+3. Built-in Tools - File & shell access (Phase 3) ← NEW
+   - Claude can create, read, and edit files
+   - Claude can run shell commands (Inkscape, ImageMagick, etc.)
+   - Claude can search the web for design inspiration
+   - Tools are enabled via the allowed_tools parameter
 
-With query(), each request starts fresh - Claude wouldn't know what
-"navigation bar" you're referring to in request #2.
+BUILT-IN TOOLS EXPLAINED:
+-------------------------
+The SDK provides these built-in tools that Claude can use:
 
-With ClaudeSDKClient, Claude maintains context:
-  - Remembers the code it generated
-  - Understands references to previous elements
-  - Can build upon and modify earlier work
+  FILE TOOLS:
+  - Read:  Read file contents from working directory
+  - Write: Create new files (HTML, CSS, SVG, etc.)
+  - Edit:  Make precise edits to existing files
 
-HOW CONTEXT FLOWS:
+  SHELL TOOLS:
+  - Bash:  Run shell commands (inkscape, convert, git, etc.)
+
+  SEARCH TOOLS:
+  - Glob:  Find files by pattern ("*.svg", "**/*.css")
+  - Grep:  Search within file contents
+
+  WEB TOOLS:
+  - WebSearch: Search the web for research/inspiration
+  - WebFetch:  Fetch and parse web page content
+
+WHY TOOLS MATTER FOR DESIGN:
+----------------------------
+With tools enabled, Claude can actually CREATE your designs:
+
+  User: "Create a landing page for a coffee shop"
+  Claude: [Uses Write tool to create index.html]
+          [Uses Write tool to create styles.css]
+          [Uses Bash to run: inkscape --export-png logo.png logo.svg]
+          "I've created your landing page with..."
+
+Without tools, Claude can only describe what to do.
+With tools, Claude does the work for you.
+
+WORKING DIRECTORY:
 ------------------
-                    ┌─────────────────┐
-  User: "Create     │  ClaudeSDK      │
-  a nav bar"  ───▶  │  Client         │ ───▶ Claude generates nav HTML
-                    │                 │
-  User: "Make it    │  (maintains     │
-  sticky"     ───▶  │   context)      │ ───▶ Claude modifies the SAME nav
-                    │                 │
-  User: "Add        │  Session ID:    │
-  dropdown"   ───▶  │  abc123...      │ ───▶ Claude adds to the SAME nav
-                    └─────────────────┘
+The working_dir parameter scopes where Claude can operate:
+- All file operations are relative to this directory
+- Provides safety by limiting Claude's file access
+- Defaults to current directory if not specified
 
-The session ID identifies your conversation. You can even resume
-sessions later if you save the ID.
-
-Message Types (same as Phase 1):
+Message Types:
 - AssistantMessage: Claude's responses containing content blocks
 - TextBlock: Plain text within a message
-- ToolUseBlock: When Claude wants to use a tool (Phase 3)
-- ToolResultBlock: Results from tool execution (Phase 3)
+- ToolUseBlock: When Claude wants to use a tool
+- ToolResultBlock: Results from tool execution
 """
 
 import asyncio
@@ -170,15 +184,44 @@ class DesignSession:
         - References like "make IT blue" work because Claude knows what "it" is
     """
 
-    def __init__(self, working_dir: str | None = None):
+    # Default tools for design work
+    # These are Claude's built-in tools that we enable for the design session
+    DEFAULT_TOOLS = [
+        "Read",  # Read files from the working directory
+        "Write",  # Create new files
+        "Edit",  # Make precise edits to existing files
+        "Bash",  # Run shell commands (for Inkscape, ImageMagick, etc.)
+        "Glob",  # Find files by pattern (e.g., "*.svg", "**/*.css")
+        "Grep",  # Search file contents
+        "WebSearch",  # Search the web for design inspiration/research
+        "WebFetch",  # Fetch and parse web content
+    ]
+
+    def __init__(
+        self,
+        working_dir: str | None = None,
+        allowed_tools: list[str] | None = None,
+    ):
         """
         Initialize a new design session.
 
         Args:
             working_dir: Directory where files will be created/modified.
                          This scopes Claude's file operations for safety.
+                         Defaults to current directory if not specified.
+            allowed_tools: List of tools Claude can use. Defaults to DEFAULT_TOOLS.
+                          Available tools:
+                          - Read: Read files
+                          - Write: Create new files
+                          - Edit: Modify existing files
+                          - Bash: Run shell commands
+                          - Glob: Find files by pattern
+                          - Grep: Search file contents
+                          - WebSearch: Search the web
+                          - WebFetch: Fetch web pages
         """
         self._working_dir = working_dir
+        self._allowed_tools = allowed_tools or self.DEFAULT_TOOLS.copy()
         self._client: ClaudeSDKClient | None = None
         self._session_id: str | None = None
         self._message_count = 0
@@ -199,6 +242,16 @@ class DesignSession:
         """Get the number of user messages sent in this session."""
         return self._message_count
 
+    @property
+    def working_dir(self) -> str | None:
+        """Get the working directory for this session."""
+        return self._working_dir
+
+    @property
+    def allowed_tools(self) -> list[str]:
+        """Get the list of tools enabled for this session."""
+        return self._allowed_tools.copy()
+
     async def connect(self) -> None:
         """
         Establish the connection to Claude.
@@ -207,14 +260,22 @@ class DesignSession:
         but can be called manually if needed.
 
         The connection starts a Claude Code subprocess that maintains
-        your conversation state.
+        your conversation state. The subprocess has access to the tools
+        specified in allowed_tools and operates within working_dir.
         """
         if self._is_connected:
             return
 
-        # Configure the client options
-        # We'll add more options in later phases (tools, permissions, etc.)
-        options = ClaudeAgentOptions(cwd=self._working_dir)
+        # Configure the client options with tools
+        # allowed_tools controls what Claude can do:
+        # - File tools (Read/Write/Edit): Create and modify design files
+        # - Bash: Run CLI tools like Inkscape, ImageMagick
+        # - Search tools (Glob/Grep): Find files and content
+        # - Web tools (WebSearch/WebFetch): Research and inspiration
+        options = ClaudeAgentOptions(
+            cwd=self._working_dir,
+            allowed_tools=self._allowed_tools,
+        )
 
         # Create and connect the client
         self._client = ClaudeSDKClient(options=options)

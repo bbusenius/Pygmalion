@@ -1,42 +1,42 @@
 """
 Pygmalion CLI - Main entry point.
 
-Phase 2: Multi-turn conversations with persistent sessions.
+Phase 3: Built-in tools for file operations and shell commands.
 
-This module provides a command-line interface for Pygmalion that maintains
-conversation context across multiple exchanges. Unlike Phase 1 where each
-request was independent, now Claude remembers your previous requests and
-can build upon earlier work.
+This module provides a command-line interface for Pygmalion that:
+- Maintains conversation context across multiple exchanges
+- Enables Claude to create and edit files in your working directory
+- Allows Claude to run shell commands (Inkscape, ImageMagick, etc.)
+- Supports web search for design research and inspiration
 
-SESSION FLOW:
--------------
-    ┌──────────────────────────────────────────────────────────┐
-    │  Start CLI                                               │
-    │      ↓                                                   │
-    │  Create DesignSession (connects to Claude)               │
-    │      ↓                                                   │
-    │  ┌─────────────────────────────────────────────────────┐ │
-    │  │  User Input Loop                                    │ │
-    │  │      ↓                                              │ │
-    │  │  session.send(prompt) ← Context preserved!          │ │
-    │  │      ↓                                              │ │
-    │  │  Stream response                                    │ │
-    │  │      ↓                                              │ │
-    │  │  (repeat)                                           │ │
-    │  └─────────────────────────────────────────────────────┘ │
-    │      ↓                                                   │
-    │  Disconnect session on exit                              │
-    └──────────────────────────────────────────────────────────┘
+TOOLS ENABLED:
+--------------
+Claude can now actually CREATE your designs, not just describe them:
 
-The key difference from Phase 1:
-- Phase 1: Each request was independent (no memory)
-- Phase 2: All requests share context (Claude remembers)
+  FILE TOOLS:
+  - Read/Write/Edit files (HTML, CSS, SVG, images)
 
-This enables iterative design workflows like:
-  "Create a header" → "Add a logo" → "Make it sticky" → "Change colors"
+  SHELL TOOLS:
+  - Run commands like inkscape, convert (ImageMagick), git
+
+  WEB TOOLS:
+  - Search the web for design inspiration
+  - Fetch content from URLs
+
+WORKING DIRECTORY:
+------------------
+All file operations happen in the current directory where you run pygmalion.
+This keeps your designs organized and limits Claude's file access for safety.
+
+Example workflow:
+  $ mkdir my-website && cd my-website
+  $ pygmalion
+  🎨 You: Create a landing page for a coffee shop with a logo
+  🤖 Pygmalion: [Creates index.html, styles.css, logo.svg]
 """
 
 import asyncio
+import os
 import sys
 
 from pygmalion.agent import DesignSession
@@ -66,35 +66,41 @@ def print_help():
     help_text = """
 Available Commands:
   /help     - Show this help message
-  /status   - Show current session info
+  /status   - Show current session info (directory, tools, messages)
   /new      - Start a new session (clears context)
   /quit     - Exit Pygmalion
   /clear    - Clear the screen
 
-Session Info:
-  Your conversation has memory! Claude remembers previous requests
-  in this session, so you can say things like:
-    - "Make it blue" (referring to something you created earlier)
-    - "Add a hover effect" (to the element you're working on)
-    - "Now create a matching footer" (in the same style)
+Tools Available:
+  Claude can create and edit files, run shell commands, and search the web.
+  All files are created in your current working directory.
 
-Example workflow:
+Example prompts:
+  - "Create a responsive landing page for a bakery"
+  - "Design an SVG logo with geometric shapes"
+  - "Make a color palette and save it as CSS variables"
+  - "Create a button component and show me what it looks like"
+
+Iterative workflow:
   1. "Create a navigation bar with Home, About, Contact links"
   2. "Make it sticky at the top"
   3. "Add a dropdown menu under About"
-  4. "Change the background to dark blue"
+  4. "Export the logo as PNG using Inkscape"
 """
     print(help_text)
 
 
-def print_status(session: DesignSession):
+def print_status(session: DesignSession, working_dir: str):
     """Display current session information."""
+    tools_list = ", ".join(session.allowed_tools)
     status = f"""
 Session Status:
-  Connected: {session.is_connected}
-  Messages:  {session.message_count}
+  Connected:   {session.is_connected}
+  Messages:    {session.message_count}
+  Working Dir: {working_dir}
+  Tools:       {tools_list}
 
-Context is preserved across all messages in this session.
+Claude can create/edit files in the working directory and run shell commands.
 Use /new to start fresh with a new session.
 """
     print(status)
@@ -102,22 +108,25 @@ Use /new to start fresh with a new session.
 
 async def run_cli():
     """
-    Main CLI loop for Pygmalion with persistent session.
+    Main CLI loop for Pygmalion with persistent session and tools.
 
-    This creates a DesignSession that maintains context throughout
-    the entire interaction. Unlike Phase 1, Claude now remembers
-    what you've discussed and can build upon previous work.
-
-    The session is managed using an async context manager, which
-    ensures proper cleanup (disconnection) when exiting.
+    This creates a DesignSession that:
+    - Maintains context throughout the entire interaction
+    - Can create and edit files in the current working directory
+    - Can run shell commands for design tools
+    - Can search the web for inspiration
     """
     print_banner()
-    print("Type /help for available commands, or just start designing!")
-    print("(Session memory is active - Claude remembers your conversation)\n")
 
-    # Create a session that persists for the entire CLI interaction
-    # The 'async with' ensures proper connection and cleanup
-    session = DesignSession()
+    # Use current working directory for all file operations
+    working_dir = os.getcwd()
+
+    print("Type /help for available commands, or just start designing!")
+    print(f"Working directory: {working_dir}")
+    print("(Claude can create files here and run design tools)\n")
+
+    # Create a session with the working directory
+    session = DesignSession(working_dir=working_dir)
 
     try:
         await session.connect()
@@ -148,14 +157,14 @@ async def run_cli():
                         continue
 
                     elif command == "/status":
-                        print_status(session)
+                        print_status(session, working_dir)
                         continue
 
                     elif command == "/new":
                         # Disconnect current session and create a new one
                         print("\nStarting new session...")
                         await session.disconnect()
-                        session = DesignSession()
+                        session = DesignSession(working_dir=working_dir)
                         await session.connect()
                         print("✓ New session started (context cleared)\n")
                         continue
@@ -163,6 +172,7 @@ async def run_cli():
                     elif command == "/clear":
                         print("\033[2J\033[H", end="")  # ANSI clear screen
                         print_banner()
+                        print(f"Working directory: {working_dir}")
                         print(f"(Session active - {session.message_count} messages)\n")
                         continue
 
