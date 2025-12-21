@@ -126,7 +126,7 @@ This project is being built incrementally:
 - [x] Phase 4: Permission modes and autonomy
 - [x] Phase 5: Front-end design skill
 - [x] Phase 6: Inkscape integration
-- [ ] Phase 7: ImageMagick integration
+- [x] Phase 7: ImageMagick integration
 - [ ] Phase 8: GIMP integration
 - [ ] Phase 9: PDF generation (WeasyPrint)
 - [ ] Phase 10: Optional Gemini integration

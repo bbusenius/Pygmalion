@@ -121,6 +121,10 @@ from claude_agent_sdk import (
 )
 
 from pygmalion.config import AutonomyMode, get_default_autonomy_mode
+from pygmalion.tools.imagemagick import (
+    IMAGEMAGICK_TOOL_NAMES,
+    create_imagemagick_server,
+)
 from pygmalion.tools.inkscape import INKSCAPE_TOOL_NAMES, create_inkscape_server
 
 # Export public API
@@ -225,17 +229,21 @@ class DesignSession:
 
     # Default tools for design work
     # These are Claude's built-in tools that we enable for the design session
-    DEFAULT_TOOLS = [
-        "Read",  # Read files from the working directory
-        "Write",  # Create new files
-        "Edit",  # Make precise edits to existing files
-        "Bash",  # Run shell commands (for Inkscape, ImageMagick, etc.)
-        "Glob",  # Find files by pattern (e.g., "*.svg", "**/*.css")
-        "Grep",  # Search file contents
-        "WebSearch",  # Search the web for design inspiration/research
-        "WebFetch",  # Fetch and parse web content
-        "Skill",  # Enable Claude Code skills (e.g., frontend-design)
-    ] + INKSCAPE_TOOL_NAMES  # MCP tools for vector graphics
+    DEFAULT_TOOLS = (
+        [
+            "Read",  # Read files from the working directory
+            "Write",  # Create new files
+            "Edit",  # Make precise edits to existing files
+            "Bash",  # Run shell commands (for Inkscape, ImageMagick, etc.)
+            "Glob",  # Find files by pattern (e.g., "*.svg", "**/*.css")
+            "Grep",  # Search file contents
+            "WebSearch",  # Search the web for design inspiration/research
+            "WebFetch",  # Fetch and parse web content
+            "Skill",  # Enable Claude Code skills (e.g., frontend-design)
+        ]
+        + INKSCAPE_TOOL_NAMES
+        + IMAGEMAGICK_TOOL_NAMES
+    )  # MCP tools
 
     # Default model for high-quality design work
     # Use Claude Sonnet 4 for best balance of quality and speed
@@ -334,6 +342,7 @@ class DesignSession:
         # Create MCP servers for custom tools
         # MCP servers extend Claude with custom functionality
         inkscape_server = create_inkscape_server()
+        imagemagick_server = create_imagemagick_server()
 
         # Configure the client options with tools, permissions, and skills
         #
@@ -362,7 +371,10 @@ class DesignSession:
             allowed_tools=self._allowed_tools,
             permission_mode=self._autonomy_mode.value,
             setting_sources=["user", "project"],
-            mcp_servers={"inkscape": inkscape_server},
+            mcp_servers={
+                "inkscape": inkscape_server,
+                "imagemagick": imagemagick_server,
+            },
             model=self._model,
         )
 
