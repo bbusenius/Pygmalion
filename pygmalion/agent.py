@@ -120,7 +120,8 @@ from claude_agent_sdk import (
     query,
 )
 
-from pygmalion.config import AutonomyMode, get_default_autonomy_mode
+from pygmalion.config import AutonomyMode, get_default_autonomy_mode, is_gemini_enabled
+from pygmalion.tools.gemini import GEMINI_TOOL_NAMES, create_gemini_server
 from pygmalion.tools.gimp import GIMP_TOOL_NAMES, create_gimp_server
 from pygmalion.tools.imagemagick import (
     IMAGEMAGICK_TOOL_NAMES,
@@ -247,6 +248,9 @@ class DesignSession:
         + IMAGEMAGICK_TOOL_NAMES
         + GIMP_TOOL_NAMES
         + WEASYPRINT_TOOL_NAMES
+        + (
+            GEMINI_TOOL_NAMES if is_gemini_enabled() else []
+        )  # Optional AI image generation
     )  # MCP tools
 
     # Default model for high-quality design work
@@ -350,6 +354,10 @@ class DesignSession:
         gimp_server = create_gimp_server()
         weasyprint_server = create_weasyprint_server()
 
+        # Conditionally create Gemini server if enabled
+        # Gemini requires GEMINI_API_KEY and PYGMALION_GEMINI_ENABLED=true
+        gemini_server = create_gemini_server() if is_gemini_enabled() else None
+
         # Configure the client options with tools, permissions, and skills
         #
         # allowed_tools controls what Claude can do:
@@ -372,17 +380,24 @@ class DesignSession:
         # mcp_servers registers custom MCP tool servers
         #
         # model selects which Claude model to use for high-quality output
+
+        # Build MCP servers dict
+        mcp_servers = {
+            "inkscape": inkscape_server,
+            "imagemagick": imagemagick_server,
+            "gimp": gimp_server,
+            "weasyprint": weasyprint_server,
+        }
+        # Add Gemini if enabled
+        if gemini_server:
+            mcp_servers["gemini"] = gemini_server
+
         options = ClaudeAgentOptions(
             cwd=self._working_dir,
             allowed_tools=self._allowed_tools,
             permission_mode=self._autonomy_mode.value,
             setting_sources=["user", "project"],
-            mcp_servers={
-                "inkscape": inkscape_server,
-                "imagemagick": imagemagick_server,
-                "gimp": gimp_server,
-                "weasyprint": weasyprint_server,
-            },
+            mcp_servers=mcp_servers,
             model=self._model,
         )
 

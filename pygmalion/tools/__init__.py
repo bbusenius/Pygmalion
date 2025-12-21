@@ -8,9 +8,10 @@ Available tool modules:
 - imagemagick: Raster image processing (resize, convert, effects, composite)
 - gimp: Advanced raster editing (script-fu, filters, text, compositing)
 - weasyprint: PDF generation (HTML to PDF conversion)
-- gemini: AI image generation (coming in Phase 10)
+- gemini: AI image generation with Imagen 4.0 (optional, requires API key)
 """
 
+from pygmalion.tools.gemini import GEMINI_TOOL_NAMES, create_gemini_server
 from pygmalion.tools.gimp import GIMP_TOOL_NAMES, create_gimp_server
 from pygmalion.tools.imagemagick import (
     IMAGEMAGICK_TOOL_NAMES,
@@ -28,4 +29,6 @@ __all__ = [
     "GIMP_TOOL_NAMES",
     "create_weasyprint_server",
     "WEASYPRINT_TOOL_NAMES",
+    "create_gemini_server",
+    "GEMINI_TOOL_NAMES",
 ]

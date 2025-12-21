@@ -34,7 +34,7 @@ dependencies = [
 
 [project.optional-dependencies]
 pdf = ["weasyprint"]
-gemini = ["google-generativeai"]
+gemini = ["google-genai"]
 dev = ["pytest", "pytest-asyncio", "black", "isort", "flake8"]
 all = ["pygmalion[pdf,gemini,dev]"]
 

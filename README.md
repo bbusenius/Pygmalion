@@ -99,7 +99,7 @@ Pygmalion maintains conversation context, so you can iterate on designs:
 - `claude-agent-sdk` - Core agent functionality
 - `python-dotenv` - Environment variable management
 - `weasyprint` (optional) - PDF generation
-- `google-generativeai` (optional) - Gemini integration
+- `google-genai` (optional) - Gemini Imagen 4.0 integration (requires billing account)
 
 ## Project Structure
 
@@ -130,7 +130,7 @@ This project is being built incrementally:
 - [x] Phase 7: ImageMagick integration
 - [x] Phase 8: GIMP integration
 - [x] Phase 9: PDF generation (WeasyPrint)
-- [ ] Phase 10: Optional Gemini integration
+- [x] Phase 10: Optional Gemini integration (Imagen 4.0)
 - [ ] Phase 11: GitHub integration
 - [ ] Phase 12: Figma/Canva integration (optional)
 - [ ] Phase 13: Design system prompts
