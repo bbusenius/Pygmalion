@@ -94,7 +94,13 @@ Iterative workflow:
 
 def print_status(session: DesignSession, working_dir: str):
     """Display current session information."""
-    tools_list = ", ".join(session.allowed_tools)
+    # Separate built-in tools from MCP tools
+    builtin_tools = [t for t in session.allowed_tools if not t.startswith("mcp__")]
+    mcp_tools = [t for t in session.allowed_tools if t.startswith("mcp__")]
+
+    builtin_list = ", ".join(builtin_tools)
+    mcp_list = ", ".join(t.split("__")[-1] for t in mcp_tools)  # Just tool names
+
     mode_name = session.autonomy_mode.name
     mode_desc = {
         "APPROVAL": "asks before file edits",
@@ -109,7 +115,8 @@ Session Status:
   Mode:        {mode_name} ({mode_desc})
   Model:       {session.model}
   Working Dir: {working_dir}
-  Tools:       {tools_list}
+  Built-in:    {builtin_list}
+  MCP Tools:   {mcp_list}
   Skills:      frontend-design (WCAG 2.1+ compliant)
 
 Use /mode to change autonomy level, /new to start fresh.
@@ -249,10 +256,23 @@ async def run_cli():
                 print("\n🤖 Pygmalion: ", end="", flush=True)
 
                 response_started = False
+                last_char = ""
                 async for text in session.send(user_input):
                     if not response_started:
                         response_started = True
+                    # Add space between text blocks if needed
+                    # (prevents "file.Now" when Claude writes, uses tool, continues)
+                    if last_char and text:
+                        needs_space = (
+                            last_char not in " \n\t"
+                            and text[0] not in " \n\t"
+                            and last_char in ".!?:)"
+                        )
+                        if needs_space:
+                            print(" ", end="", flush=True)
                     print(text, end="", flush=True)
+                    if text:
+                        last_char = text[-1]
 
                 if not response_started:
                     print("(No response received)")

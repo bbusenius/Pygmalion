@@ -121,6 +121,7 @@ from claude_agent_sdk import (
 )
 
 from pygmalion.config import AutonomyMode, get_default_autonomy_mode
+from pygmalion.tools.inkscape import INKSCAPE_TOOL_NAMES, create_inkscape_server
 
 # Export public API
 __all__ = [
@@ -234,7 +235,7 @@ class DesignSession:
         "WebSearch",  # Search the web for design inspiration/research
         "WebFetch",  # Fetch and parse web content
         "Skill",  # Enable Claude Code skills (e.g., frontend-design)
-    ]
+    ] + INKSCAPE_TOOL_NAMES  # MCP tools for vector graphics
 
     # Default model for high-quality design work
     # Use Claude Sonnet 4 for best balance of quality and speed
@@ -330,6 +331,10 @@ class DesignSession:
         if self._is_connected:
             return
 
+        # Create MCP servers for custom tools
+        # MCP servers extend Claude with custom functionality
+        inkscape_server = create_inkscape_server()
+
         # Configure the client options with tools, permissions, and skills
         #
         # allowed_tools controls what Claude can do:
@@ -338,6 +343,7 @@ class DesignSession:
         # - Search tools (Glob/Grep): Find files and content
         # - Web tools (WebSearch/WebFetch): Research and inspiration
         # - Skill: Enable Claude Code skills (loaded from .claude/skills/)
+        # - MCP tools (mcp__inkscape__*): Custom Inkscape operations
         #
         # permission_mode controls autonomy:
         # - "default": Ask before file edits (APPROVAL mode)
@@ -348,12 +354,15 @@ class DesignSession:
         # - "user": Load skills from ~/.claude/skills/
         # - "project": Load skills from .claude/skills/ in working directory
         #
+        # mcp_servers registers custom MCP tool servers
+        #
         # model selects which Claude model to use for high-quality output
         options = ClaudeAgentOptions(
             cwd=self._working_dir,
             allowed_tools=self._allowed_tools,
             permission_mode=self._autonomy_mode.value,
             setting_sources=["user", "project"],
+            mcp_servers={"inkscape": inkscape_server},
             model=self._model,
         )
 

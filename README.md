@@ -125,7 +125,7 @@ This project is being built incrementally:
 - [x] Phase 3: Built-in tools (Read/Write/Edit/Bash)
 - [x] Phase 4: Permission modes and autonomy
 - [x] Phase 5: Front-end design skill
-- [ ] Phase 6: Inkscape integration
+- [x] Phase 6: Inkscape integration
 - [ ] Phase 7: ImageMagick integration
 - [ ] Phase 8: GIMP integration
 - [ ] Phase 9: PDF generation (WeasyPrint)
