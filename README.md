@@ -91,6 +91,7 @@ Pygmalion maintains conversation context, so you can iterate on designs:
 - Python 3.10+
 - Inkscape (for vector graphics)
 - ImageMagick (for image processing)
+- GIMP (for advanced raster editing)
 - Chrome with Claude Code extension (for web preview)
 
 ### Python Dependencies
@@ -127,7 +128,7 @@ This project is being built incrementally:
 - [x] Phase 5: Front-end design skill
 - [x] Phase 6: Inkscape integration
 - [x] Phase 7: ImageMagick integration
-- [ ] Phase 8: GIMP integration
+- [x] Phase 8: GIMP integration
 - [ ] Phase 9: PDF generation (WeasyPrint)
 - [ ] Phase 10: Optional Gemini integration
 - [ ] Phase 11: GitHub integration

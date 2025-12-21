@@ -121,6 +121,7 @@ from claude_agent_sdk import (
 )
 
 from pygmalion.config import AutonomyMode, get_default_autonomy_mode
+from pygmalion.tools.gimp import GIMP_TOOL_NAMES, create_gimp_server
 from pygmalion.tools.imagemagick import (
     IMAGEMAGICK_TOOL_NAMES,
     create_imagemagick_server,
@@ -243,6 +244,7 @@ class DesignSession:
         ]
         + INKSCAPE_TOOL_NAMES
         + IMAGEMAGICK_TOOL_NAMES
+        + GIMP_TOOL_NAMES
     )  # MCP tools
 
     # Default model for high-quality design work
@@ -343,6 +345,7 @@ class DesignSession:
         # MCP servers extend Claude with custom functionality
         inkscape_server = create_inkscape_server()
         imagemagick_server = create_imagemagick_server()
+        gimp_server = create_gimp_server()
 
         # Configure the client options with tools, permissions, and skills
         #
@@ -374,6 +377,7 @@ class DesignSession:
             mcp_servers={
                 "inkscape": inkscape_server,
                 "imagemagick": imagemagick_server,
+                "gimp": gimp_server,
             },
             model=self._model,
         )
