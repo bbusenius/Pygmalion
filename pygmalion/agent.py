@@ -127,6 +127,7 @@ from pygmalion.tools.imagemagick import (
     create_imagemagick_server,
 )
 from pygmalion.tools.inkscape import INKSCAPE_TOOL_NAMES, create_inkscape_server
+from pygmalion.tools.weasyprint import WEASYPRINT_TOOL_NAMES, create_weasyprint_server
 
 # Export public API
 __all__ = [
@@ -245,6 +246,7 @@ class DesignSession:
         + INKSCAPE_TOOL_NAMES
         + IMAGEMAGICK_TOOL_NAMES
         + GIMP_TOOL_NAMES
+        + WEASYPRINT_TOOL_NAMES
     )  # MCP tools
 
     # Default model for high-quality design work
@@ -346,6 +348,7 @@ class DesignSession:
         inkscape_server = create_inkscape_server()
         imagemagick_server = create_imagemagick_server()
         gimp_server = create_gimp_server()
+        weasyprint_server = create_weasyprint_server()
 
         # Configure the client options with tools, permissions, and skills
         #
@@ -378,6 +381,7 @@ class DesignSession:
                 "inkscape": inkscape_server,
                 "imagemagick": imagemagick_server,
                 "gimp": gimp_server,
+                "weasyprint": weasyprint_server,
             },
             model=self._model,
         )
