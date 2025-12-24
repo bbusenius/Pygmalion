@@ -99,6 +99,34 @@ Iterative workflow:
     print(help_text)
 
 
+def get_installed_skills(working_dir: str) -> list[str]:
+    """Scan for installed Claude skills in user and project directories."""
+    skills = []
+
+    # Check user skills directory
+    user_skills_dir = os.path.expanduser("~/.claude/skills")
+    if os.path.isdir(user_skills_dir):
+        for entry in os.listdir(user_skills_dir):
+            skill_path = os.path.join(user_skills_dir, entry)
+            if os.path.isdir(skill_path) and os.path.exists(
+                os.path.join(skill_path, "SKILL.md")
+            ):
+                skills.append(entry)
+
+    # Check project skills directory
+    project_skills_dir = os.path.join(working_dir, ".claude/skills")
+    if os.path.isdir(project_skills_dir):
+        for entry in os.listdir(project_skills_dir):
+            skill_path = os.path.join(project_skills_dir, entry)
+            if os.path.isdir(skill_path) and os.path.exists(
+                os.path.join(skill_path, "SKILL.md")
+            ):
+                if entry not in skills:  # Avoid duplicates
+                    skills.append(entry)
+
+    return sorted(skills)
+
+
 def print_status(session: DesignSession, working_dir: str):
     """Display current session information."""
     # Separate built-in tools from MCP tools
@@ -115,6 +143,10 @@ def print_status(session: DesignSession, working_dir: str):
         "FULL_AUTO": "no permission prompts",
     }.get(mode_name, "")
 
+    # Get installed skills
+    skills = get_installed_skills(working_dir)
+    skills_list = ", ".join(skills) if skills else "none installed"
+
     status = f"""
 Session Status:
   Connected:   {session.is_connected}
@@ -124,7 +156,7 @@ Session Status:
   Working Dir: {working_dir}
   Built-in:    {builtin_list}
   MCP Tools:   {mcp_list}
-  Skills:      frontend-design (WCAG 2.1+ compliant)
+  Skills:      {skills_list}
 
 Use /mode to change autonomy level, /new to start fresh.
 """

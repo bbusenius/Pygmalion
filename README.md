@@ -48,6 +48,38 @@ export ANTHROPIC_API_KEY=sk-ant-api03-...
 
 Or create a `.env` file (copy from `.env.example`).
 
+## Frontend Design Skill Setup (Recommended)
+
+Pygmalion can use the `frontend-design` skill to generate distinctive, production-grade web interfaces with bold aesthetics.
+
+### Option 1: Install via Claude Code (Global)
+
+If you have Claude Code installed:
+
+```bash
+claude /plugin marketplace add anthropics/claude-code
+claude /plugin install frontend-design@anthropics-claude-code
+```
+
+This installs to `~/.claude/skills/` and is available for all projects.
+
+### Option 2: Install to Project Directory (Local)
+
+Install to this project only:
+
+```bash
+mkdir -p .claude/skills/frontend-design
+curl -o .claude/skills/frontend-design/SKILL.md \
+  https://raw.githubusercontent.com/anthropics/claude-code/main/plugins/frontend-design/skills/frontend-design/SKILL.md
+```
+
+### Verification
+
+Run `pygmalion` and type `/status`. You should see:
+```
+Skills: frontend-design
+```
+
 ## Usage
 
 ```bash
