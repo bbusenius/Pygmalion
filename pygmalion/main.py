@@ -39,6 +39,13 @@ import asyncio
 import os
 import sys
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env file FIRST
+# This must happen before importing DesignSession, because DEFAULT_TOOLS
+# is evaluated at class definition time and checks is_figma_enabled()
+load_dotenv()
+
 from pygmalion.agent import AutonomyMode, DesignSession
 from pygmalion.config import get_default_autonomy_mode
 

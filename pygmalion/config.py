@@ -122,3 +122,20 @@ def is_gemini_enabled() -> bool:
     has_key = bool(os.environ.get("GEMINI_API_KEY", "").strip())
 
     return enabled in ("true", "1", "yes", "on") and has_key
+
+
+def is_figma_enabled() -> bool:
+    """
+    Check if Figma MCP integration is enabled via environment variable.
+
+    Returns True if PYGMALION_FIGMA_ENABLED is set to a truthy value
+    AND FIGMA_ACCESS_TOKEN is present.
+
+    Note: Figma MCP server (GLips/Figma-Context-MCP) must be installed separately.
+    """
+    enabled = os.environ.get("PYGMALION_FIGMA_ENABLED", "").lower()
+    has_token = bool(os.environ.get("FIGMA_ACCESS_TOKEN", "").strip())
+
+    return enabled in ("true", "1", "yes", "on") and has_token
+
+

@@ -106,6 +106,7 @@ Message Types:
 """
 
 import asyncio
+import os
 from typing import AsyncIterator
 
 # Import from claude-agent-sdk
@@ -120,7 +121,12 @@ from claude_agent_sdk import (
     query,
 )
 
-from pygmalion.config import AutonomyMode, get_default_autonomy_mode, is_gemini_enabled
+from pygmalion.config import (
+    AutonomyMode,
+    get_default_autonomy_mode,
+    is_figma_enabled,
+    is_gemini_enabled,
+)
 from pygmalion.tools.gemini import GEMINI_TOOL_NAMES, create_gemini_server
 from pygmalion.tools.gimp import GIMP_TOOL_NAMES, create_gimp_server
 from pygmalion.tools.imagemagick import (
@@ -251,7 +257,15 @@ class DesignSession:
         + (
             GEMINI_TOOL_NAMES if is_gemini_enabled() else []
         )  # Optional AI image generation
-    )  # MCP tools
+        + (
+            [
+                "mcp__figma__get_figma_data",
+                "mcp__figma__download_figma_images",
+            ]
+            if is_figma_enabled()
+            else []
+        )  # Optional Figma integration
+    )
 
     # Default model for high-quality design work
     # Use Claude Sonnet 4 for best balance of quality and speed
@@ -391,6 +405,21 @@ class DesignSession:
         # Add Gemini if enabled
         if gemini_server:
             mcp_servers["gemini"] = gemini_server
+
+        # Add Figma MCP server if enabled
+        # Figma is an external MCP server (runs as separate Node.js process)
+        if is_figma_enabled():
+            figma_token = os.environ.get("FIGMA_ACCESS_TOKEN", "")
+            mcp_servers["figma"] = {
+                "command": "npx",
+                "args": [
+                    "-y",
+                    "figma-developer-mcp",
+                    "--figma-api-key",
+                    figma_token,
+                    "--stdio",
+                ],
+            }
 
         options = ClaudeAgentOptions(
             cwd=self._working_dir,

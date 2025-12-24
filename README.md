@@ -131,8 +131,8 @@ This project is being built incrementally:
 - [x] Phase 8: GIMP integration
 - [x] Phase 9: PDF generation (WeasyPrint)
 - [x] Phase 10: Optional Gemini integration (Imagen 4.0)
-- [ ] Phase 11: GitHub integration
-- [ ] Phase 12: Figma/Canva integration (optional)
+- [ ] Phase 11: GitHub integration (skipped - available in Claude Code)
+- [x] Phase 12: Figma integration (external MCP server)
 - [ ] Phase 13: Design system prompts
 - [ ] Phase 14: Logging and error handling
 - [ ] Phase 15: CLI polish
