@@ -274,9 +274,17 @@ class DesignSession:
         )  # Optional Figma integration
     )
 
+    # Available Claude models
+    # Use model aliases for convenience, SDK accepts both aliases and full IDs
+    AVAILABLE_MODELS = {
+        "opus": "claude-opus-4-5-20251101",
+        "sonnet": "claude-sonnet-4-20250514",
+        "haiku": "claude-3-5-haiku-20241022",
+    }
+
     # Default model for high-quality design work
     # Use Claude Sonnet 4 for best balance of quality and speed
-    DEFAULT_MODEL = "claude-sonnet-4-20250514"
+    DEFAULT_MODEL = "sonnet"
 
     def __init__(
         self,
@@ -308,12 +316,25 @@ class DesignSession:
                           - AUTO: Auto-approve file edits
                           - FULL_AUTO: No permission prompts (use with caution)
             model: Which Claude model to use. Defaults to DEFAULT_MODEL.
-                   Use high-quality models for best design output.
+                   Accepts aliases (opus, sonnet, haiku) or full model IDs.
         """
         self._working_dir = working_dir
         self._allowed_tools = allowed_tools or self.DEFAULT_TOOLS.copy()
         self._autonomy_mode = autonomy_mode or get_default_autonomy_mode()
-        self._model = model or self.DEFAULT_MODEL
+
+        # Resolve model alias to full model ID
+        model_key = model or self.DEFAULT_MODEL
+        if model_key in self.AVAILABLE_MODELS:
+            self._model = self.AVAILABLE_MODELS[model_key]
+            self._model_alias = model_key
+        else:
+            # Assume it's a full model ID
+            self._model = model_key
+            # Try to find alias for display
+            self._model_alias = next(
+                (k for k, v in self.AVAILABLE_MODELS.items() if v == model_key),
+                model_key
+            )
         self._client: ClaudeSDKClient | None = None
         self._session_id: str | None = None
         self._message_count = 0
@@ -353,6 +374,16 @@ class DesignSession:
     def model(self) -> str:
         """Get the model being used for this session."""
         return self._model
+
+    @property
+    def model_alias(self) -> str:
+        """Get the model alias (opus, sonnet, haiku) or full ID if no alias."""
+        return self._model_alias
+
+    @classmethod
+    def get_available_models(cls) -> dict[str, str]:
+        """Get available models and their full IDs."""
+        return cls.AVAILABLE_MODELS.copy()
 
     async def connect(self) -> None:
         """

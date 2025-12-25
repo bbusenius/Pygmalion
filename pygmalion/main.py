@@ -97,6 +97,12 @@ Output Directory:
   If not specified, Pygmalion will prompt you on startup.
   Default location: ~/pygmalion-output
 
+Model Selection:
+  Choose which Claude model to use with --model:
+    pygmalion --model opus    # Claude Opus 4.5 (most capable)
+    pygmalion --model sonnet  # Claude Sonnet 4 (default, balanced)
+    pygmalion --model haiku   # Claude Haiku 3.5 (fastest)
+
 Debug Mode:
   Run with --debug flag for verbose logging:
     pygmalion --debug
@@ -170,7 +176,7 @@ Session Status:
   Connected:     {session.is_connected}
   Messages:      {session.message_count}
   Mode:          {mode_name} ({mode_desc})
-  Model:         {session.model}
+  Model:         {session.model_alias} ({session.model})
   Output Dir:    {working_dir}
   Built-in:      {builtin_list}
   MCP Tools:     {mcp_list}
@@ -199,7 +205,7 @@ Note: Changing mode requires starting a new session.
     print(mode_help)
 
 
-async def run_cli(output_dir: str = None):
+async def run_cli(output_dir: str = None, model: str = None):
     """
     Main CLI loop for Pygmalion with persistent session, tools, and autonomy.
 
@@ -211,6 +217,7 @@ async def run_cli(output_dir: str = None):
 
     Args:
         output_dir: Directory where files should be created. If None, prompts user.
+        model: Claude model to use (opus, sonnet, haiku). If None, uses default.
     """
     print_banner()
 
@@ -251,12 +258,15 @@ async def run_cli(output_dir: str = None):
     # Get default autonomy mode (from env var or default to APPROVAL)
     autonomy_mode = get_default_autonomy_mode()
 
+    # Create a session with the working directory, autonomy mode, and model
+    session = DesignSession(
+        working_dir=working_dir, autonomy_mode=autonomy_mode, model=model
+    )
+
     print("\nType /help for available commands, or just start designing!")
     print(f"Output directory: {working_dir}")
+    print(f"Model: {session.model_alias} (use --model to change)")
     print(f"Mode: {autonomy_mode.name} (use /mode to change)\n")
-
-    # Create a session with the working directory and autonomy mode
-    session = DesignSession(working_dir=working_dir, autonomy_mode=autonomy_mode)
 
     try:
         logger.info(
@@ -315,10 +325,12 @@ async def run_cli(output_dir: str = None):
                                     )
                                     autonomy_mode = new_mode
                                     print(f"\nMode changed to: {autonomy_mode.name}")
+                                    current_model = session.model_alias
                                     await session.disconnect()
                                     session = DesignSession(
                                         working_dir=working_dir,
                                         autonomy_mode=autonomy_mode,
+                                        model=current_model,
                                     )
                                     with Spinner("Starting new session..."):
                                         await session.connect()
@@ -335,9 +347,12 @@ async def run_cli(output_dir: str = None):
                     elif command == "/new":
                         # Disconnect current session and create a new one
                         logger.info("Starting new session (clearing context)")
+                        current_model = session.model_alias
                         await session.disconnect()
                         session = DesignSession(
-                            working_dir=working_dir, autonomy_mode=autonomy_mode
+                            working_dir=working_dir,
+                            autonomy_mode=autonomy_mode,
+                            model=current_model,
                         )
                         with Spinner("Starting new session..."):
                             await session.connect()
@@ -459,6 +474,13 @@ def main():
         default=None,
         help="Directory where Pygmalion will create files (default: prompts user)",
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        choices=["opus", "sonnet", "haiku"],
+        help="Claude model to use: opus, sonnet (default), or haiku",
+    )
     args = parser.parse_args()
 
     # Set up logging
@@ -466,7 +488,7 @@ def main():
 
     try:
         logger.info("Starting Pygmalion")
-        asyncio.run(run_cli(output_dir=args.output_dir))
+        asyncio.run(run_cli(output_dir=args.output_dir, model=args.model))
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
         print("\nGoodbye!")
