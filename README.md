@@ -137,6 +137,64 @@ These files are automatically loaded and Claude will follow the guidelines when 
 
 You can also create custom skills for reusable design patterns. See the [Claude Code skills documentation](https://github.com/anthropics/claude-code) for details on creating SKILL.md files.
 
+### Using Brand Guidelines and Styleguides
+
+Pygmalion can follow your organization's brand guidelines when generating designs. Configure your CLAUDE.md to include brand rules or reference external documentation:
+
+**Embed Rules Directly**
+
+For simple brand systems, include the key rules in CLAUDE.md:
+
+```markdown
+# Brand Guidelines
+
+## Colors
+Primary: #1E3A5F (Navy Blue)
+Secondary: #E8B923 (Gold)
+Accent: #2E7D32 (Forest Green)
+
+## Typography
+- Headings: Montserrat Bold
+- Body: Open Sans Regular
+
+## Logo Usage
+- Minimum clear space: 20px around logo
+- Logo file: assets/logo.svg
+```
+
+**Reference External Documents**
+
+For comprehensive brand guides, reference them in CLAUDE.md so Pygmalion reads them automatically:
+
+```markdown
+# Brand Guidelines
+
+Before creating any designs, read and follow the brand guidelines in:
+- docs/brand-guide.pdf (complete brand documentation)
+- docs/color-palette.md (approved color codes)
+- https://example.com/design-system (online style guide)
+```
+
+Pygmalion can read PDFs, markdown files, and fetch web-based style guides to extract colors, typography, spacing rules, and usage guidelines.
+
+**Recommended Project Structure**
+
+```
+my-project/
+├── .claude/
+│   └── CLAUDE.md          # Brand rules + references to docs
+├── docs/
+│   ├── brand-guide.pdf    # Full brand documentation
+│   └── color-palette.md   # Quick color reference
+├── assets/
+│   ├── logo.svg
+│   └── icons/
+└── src/
+    └── [generated files]
+```
+
+This ensures Pygmalion automatically applies your brand rules to every design without needing to specify them in each prompt.
+
 ### Example Session
 
 Pygmalion maintains conversation context, so you can iterate on designs:
