@@ -121,6 +121,11 @@ from claude_agent_sdk import (
     query,
 )
 
+from pygmalion.utils import get_logger
+
+# Get logger for this module
+logger = get_logger(__name__)
+
 from pygmalion.config import (
     AutonomyMode,
     get_default_autonomy_mode,
@@ -359,7 +364,10 @@ class DesignSession:
         specified in allowed_tools and operates within working_dir.
         """
         if self._is_connected:
+            logger.debug("Already connected, skipping connection")
             return
+
+        logger.info("Connecting to Claude SDK...")
 
         # Create MCP servers for custom tools
         # MCP servers extend Claude with custom functionality
@@ -431,9 +439,13 @@ class DesignSession:
         )
 
         # Create and connect the client
+        logger.debug(
+            f"Creating SDK client with model={self._model}, tools={len(self._allowed_tools)}"
+        )
         self._client = ClaudeSDKClient(options=options)
         await self._client.connect()
         self._is_connected = True
+        logger.info("Successfully connected to Claude SDK")
 
     async def disconnect(self) -> None:
         """
@@ -443,8 +455,10 @@ class DesignSession:
         After disconnecting, you can no longer send messages in this session.
         """
         if self._client and self._is_connected:
+            logger.info(f"Disconnecting session (messages sent: {self._message_count})")
             await self._client.disconnect()
             self._is_connected = False
+            logger.debug("Disconnected successfully")
 
     async def send(self, prompt: str) -> AsyncIterator[str]:
         """

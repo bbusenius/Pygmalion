@@ -137,5 +137,3 @@ def is_figma_enabled() -> bool:
     has_token = bool(os.environ.get("FIGMA_ACCESS_TOKEN", "").strip())
 
     return enabled in ("true", "1", "yes", "on") and has_token
-
-

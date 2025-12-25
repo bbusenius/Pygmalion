@@ -116,6 +116,31 @@ Pygmalion maintains conversation context, so you can iterate on designs:
 - `/quit` - Exit Pygmalion
 - `/clear` - Clear the screen
 
+### Debug Mode and Logging
+
+Pygmalion includes logging for troubleshooting:
+
+```bash
+# Enable debug mode (verbose logging)
+pygmalion --debug
+
+# Disable file logging (console only)
+pygmalion --no-log-file
+```
+
+**Log Files:**
+- Location: `~/.pygmalion/logs/pygmalion.log`
+- Automatic rotation: 10 MB max size, 5 backup files
+- Debug mode: Shows detailed SDK communication and tool calls
+- Normal mode: Shows errors and warnings only
+
+**Error Messages:**
+Pygmalion provides user-friendly error messages with suggestions:
+- Missing API key → Instructions to set ANTHROPIC_API_KEY
+- Tool not found → Installation instructions for Inkscape/ImageMagick/GIMP
+- Network errors → Retry suggestions
+- Permission errors → File permission fixes
+
 ## Requirements
 
 ### System Dependencies
@@ -165,11 +190,11 @@ This project is being built incrementally:
 - [x] Phase 10: Optional Gemini integration (Imagen 4.0)
 - [ ] Phase 11: GitHub integration (skipped - available in Claude Code)
 - [x] Phase 12: Figma integration (external MCP server)
-- [ ] Phase 13: Design system prompts
-- [ ] Phase 14: Logging and error handling
-- [ ] Phase 15: CLI polish
-- [ ] Phase 16: Session export
-- [ ] Phase 17: Chrome extension workflow
+- [x] Phase 13: Logging and error handling
+- [ ] Phase 14: CLI polish
+- [ ] Phase 15: Session export
+- [ ] Phase 16: Chrome extension workflow
+- [ ] Phase 17: Design system prompts
 
 ## License
 

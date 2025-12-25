@@ -1,8 +1,6 @@
 """
 Pygmalion CLI - Main entry point.
 
-Phase 4: Permission modes and autonomy configuration.
-
 This module provides a command-line interface for Pygmalion that:
 - Maintains conversation context across multiple exchanges
 - Enables Claude to create and edit files in your working directory
@@ -35,6 +33,7 @@ Commands:
   /status                          - Show session info including mode
 """
 
+import argparse
 import asyncio
 import os
 import sys
@@ -48,6 +47,10 @@ load_dotenv()
 
 from pygmalion.agent import AutonomyMode, DesignSession
 from pygmalion.config import get_default_autonomy_mode
+from pygmalion.utils import format_error_for_user, get_logger, setup_logging
+
+# Get logger for this module
+logger = get_logger(__name__)
 
 
 def print_banner():
@@ -84,6 +87,12 @@ Autonomy Modes (/mode):
   approval  - Ask before file edits (safest, default)
   auto      - Auto-approve file edits (faster)
   full_auto - No prompts at all (use with caution!)
+
+Debug Mode:
+  Run with --debug flag for verbose logging:
+    pygmalion --debug
+
+  Logs are saved to: ~/.pygmalion/logs/pygmalion.log
 
 Example prompts:
   - "Create a responsive landing page for a bakery"
@@ -207,7 +216,11 @@ async def run_cli():
     session = DesignSession(working_dir=working_dir, autonomy_mode=autonomy_mode)
 
     try:
+        logger.info(
+            f"Connecting session (mode={autonomy_mode.name}, dir={working_dir})"
+        )
         await session.connect()
+        logger.info("Session connected successfully")
         print("✓ Session connected\n")
 
         while True:
@@ -250,6 +263,9 @@ async def run_cli():
                             try:
                                 new_mode = AutonomyMode.from_string(args[0])
                                 if new_mode != autonomy_mode:
+                                    logger.info(
+                                        f"Changing mode from {autonomy_mode.name} to {new_mode.name}"
+                                    )
                                     autonomy_mode = new_mode
                                     print(f"\nMode changed to: {autonomy_mode.name}")
                                     print("Starting new session with new mode...")
@@ -259,22 +275,26 @@ async def run_cli():
                                         autonomy_mode=autonomy_mode,
                                     )
                                     await session.connect()
+                                    logger.info("New session started with new mode")
                                     print("✓ New session started\n")
                                 else:
                                     print(f"\nAlready in {autonomy_mode.name} mode.")
                             except ValueError as e:
+                                logger.warning(f"Invalid mode: {e}")
                                 print(f"\n❌ {e}")
                                 print_mode_help()
                         continue
 
                     elif command == "/new":
                         # Disconnect current session and create a new one
+                        logger.info("Starting new session (clearing context)")
                         print("\nStarting new session...")
                         await session.disconnect()
                         session = DesignSession(
                             working_dir=working_dir, autonomy_mode=autonomy_mode
                         )
                         await session.connect()
+                        logger.info("New session started")
                         print("✓ New session started (context cleared)\n")
                         continue
 
@@ -327,8 +347,10 @@ async def run_cli():
                 break
 
             except Exception as e:
-                print(f"\n❌ Error: {e}")
-                print("Please try again or type /quit to exit.")
+                logger.error(f"Error during message exchange: {e}", exc_info=True)
+                error_msg = format_error_for_user(e)
+                print(f"\n❌ {error_msg}")
+                print("\nPlease try again or type /quit to exit.")
 
     finally:
         # Always disconnect the session on exit
@@ -339,11 +361,38 @@ async def run_cli():
 
 def main():
     """Entry point for the pygmalion command."""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description="Pygmalion - AI-powered design assistant",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode (verbose logging)",
+    )
+    parser.add_argument(
+        "--no-log-file",
+        action="store_true",
+        help="Disable logging to file",
+    )
+    args = parser.parse_args()
+
+    # Set up logging
+    setup_logging(debug=args.debug, log_to_file=not args.no_log_file)
+
     try:
+        logger.info("Starting Pygmalion")
         asyncio.run(run_cli())
     except KeyboardInterrupt:
+        logger.info("Interrupted by user")
         print("\nGoodbye!")
         sys.exit(0)
+    except Exception as e:
+        logger.critical(f"Fatal error: {e}", exc_info=True)
+        error_msg = format_error_for_user(e)
+        print(f"\n❌ Fatal error:\n{error_msg}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
