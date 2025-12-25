@@ -102,6 +102,41 @@ Pygmalion automatically opens created files in the appropriate application:
 - **Image files** (PNG, JPG, etc.) → GIMP
 - **HTML files** → Default browser
 
+### Customization with CLAUDE.md
+
+Pygmalion respects project-specific and global CLAUDE.md files for custom design guidelines:
+
+**Project-level** (`.claude/CLAUDE.md` in your output directory):
+```markdown
+# Design System
+
+## Colors
+Primary: #3B82F6
+Secondary: #10B981
+
+## Typography
+- Use Inter font family
+- Headings: 700 weight
+- Body: 400 weight
+
+## Spacing
+Use 8px grid system (8, 16, 24, 32, etc.)
+```
+
+**Global** (`~/.claude/CLAUDE.md` - applies to all projects):
+```markdown
+# Personal Preferences
+- Always use Tailwind CSS classes
+- Prefer semantic HTML5 elements
+- Include accessibility attributes (ARIA labels, alt text)
+```
+
+These files are automatically loaded and Claude will follow the guidelines when generating designs.
+
+**Custom Skills** (`.claude/skills/` in output directory or `~/.claude/skills/`):
+
+You can also create custom skills for reusable design patterns. See the [Claude Code skills documentation](https://github.com/anthropics/claude-code) for details on creating SKILL.md files.
+
 ### Example Session
 
 Pygmalion maintains conversation context, so you can iterate on designs:
@@ -207,7 +242,7 @@ This project is being built incrementally:
 - [x] Phase 13: Logging and error handling
 - [x] Phase 14: CLI polish (progress indicators)
 - [x] Phase 15+16: File management (output directory control, auto-opening)
-- [ ] Phase 17: Design system prompts
+- [x] Phase 17: Design customization (CLAUDE.md support via SDK)
 
 ## License
 
