@@ -118,6 +118,7 @@ from claude_agent_sdk import (
     CLINotFoundError,
     ProcessError,
     TextBlock,
+    ToolUseBlock,
     query,
 )
 
@@ -460,7 +461,7 @@ class DesignSession:
             self._is_connected = False
             logger.debug("Disconnected successfully")
 
-    async def send(self, prompt: str) -> AsyncIterator[str]:
+    async def send(self, prompt: str) -> AsyncIterator[tuple[str, str]]:
         """
         Send a message to Claude and stream the response.
 
@@ -471,14 +472,20 @@ class DesignSession:
             prompt: Your design request or follow-up instruction
 
         Yields:
-            Text chunks from Claude's response (streams as they arrive)
+            Tuples of (message_type, content) where:
+            - ("text", text_chunk) for Claude's text responses
+            - ("tool_use", tool_name) when Claude starts using a tool
+            - ("tool_result", "") when a tool completes
 
         Raises:
             RuntimeError: If the session is not connected
 
         Example:
-            async for text in session.send("Create a blue button"):
-                print(text, end="", flush=True)
+            async for msg_type, content in session.send("Create a blue button"):
+                if msg_type == "text":
+                    print(content, end="", flush=True)
+                elif msg_type == "tool_use":
+                    print(f"[Using {content}...]")
         """
         if not self._is_connected or not self._client:
             raise RuntimeError(
@@ -493,10 +500,18 @@ class DesignSession:
         # Stream the response
         # receive_response() yields messages and completes when the response is done
         async for message in self._client.receive_response():
+            logger.debug(f"Received message type: {type(message).__name__}")
             if isinstance(message, AssistantMessage):
                 for block in message.content:
                     if isinstance(block, TextBlock):
-                        yield block.text
+                        yield ("text", block.text)
+                    elif isinstance(block, ToolUseBlock):
+                        # Notify that a tool is being used
+                        tool_name = block.name
+                        logger.debug(f"ToolUseBlock detected: {tool_name}")
+                        yield ("tool_use", tool_name)
+                    else:
+                        logger.debug(f"Unknown block type: {type(block).__name__}")
 
     async def __aenter__(self) -> "DesignSession":
         """Async context manager entry - connects the session."""
@@ -530,17 +545,21 @@ if __name__ == "__main__":
             # First message
             print("\n[User]: Describe a simple HTML button in one sentence.")
             print("[Claude]: ", end="")
-            async for text in session.send(
+            async for msg_type, content in session.send(
                 "Describe a simple HTML button in one sentence."
             ):
-                print(text, end="", flush=True)
+                if msg_type == "text":
+                    print(content, end="", flush=True)
             print(f"\n(Messages: {session.message_count})")
 
             # Follow-up - Claude should understand "it" refers to the button
             print("\n[User]: How would you style it with CSS?")
             print("[Claude]: ", end="")
-            async for text in session.send("How would you style it with CSS?"):
-                print(text, end="", flush=True)
+            async for msg_type, content in session.send(
+                "How would you style it with CSS?"
+            ):
+                if msg_type == "text":
+                    print(content, end="", flush=True)
             print(f"\n(Messages: {session.message_count})")
 
     async def main():

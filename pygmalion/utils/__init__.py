@@ -7,6 +7,12 @@ from pygmalion.utils.logging import (
     is_debug_mode,
     setup_logging,
 )
+from pygmalion.utils.progress import (
+    Spinner,
+    show_status,
+    show_tool_execution,
+    show_tool_result,
+)
 
 __all__ = [
     "get_logger",
@@ -14,4 +20,8 @@ __all__ = [
     "is_debug_mode",
     "UserFacingError",
     "format_error_for_user",
+    "Spinner",
+    "show_status",
+    "show_tool_execution",
+    "show_tool_result",
 ]

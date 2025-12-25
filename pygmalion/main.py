@@ -39,6 +39,8 @@ import os
 import sys
 
 from dotenv import load_dotenv
+from prompt_toolkit import PromptSession
+from prompt_toolkit.history import InMemoryHistory
 
 # Load environment variables from .env file FIRST
 # This must happen before importing DesignSession, because DEFAULT_TOOLS
@@ -47,7 +49,7 @@ load_dotenv()
 
 from pygmalion.agent import AutonomyMode, DesignSession
 from pygmalion.config import get_default_autonomy_mode
-from pygmalion.utils import format_error_for_user, get_logger, setup_logging
+from pygmalion.utils import Spinner, format_error_for_user, get_logger, setup_logging
 
 # Get logger for this module
 logger = get_logger(__name__)
@@ -212,6 +214,9 @@ async def run_cli():
     print(f"Working directory: {working_dir}")
     print(f"Mode: {autonomy_mode.name} (use /mode to change)\n")
 
+    # Create prompt session with history for better input handling
+    prompt_session = PromptSession(history=InMemoryHistory())
+
     # Create a session with the working directory and autonomy mode
     session = DesignSession(working_dir=working_dir, autonomy_mode=autonomy_mode)
 
@@ -219,7 +224,8 @@ async def run_cli():
         logger.info(
             f"Connecting session (mode={autonomy_mode.name}, dir={working_dir})"
         )
-        await session.connect()
+        with Spinner("Connecting to Claude..."):
+            await session.connect()
         logger.info("Session connected successfully")
         print("✓ Session connected\n")
 
@@ -229,7 +235,10 @@ async def run_cli():
                 msg_indicator = (
                     f"[{session.message_count}]" if session.message_count > 0 else ""
                 )
-                user_input = input(f"\n🎨 You {msg_indicator}: ").strip()
+                user_input = await prompt_session.prompt_async(
+                    f"\n🎨 You {msg_indicator}: "
+                )
+                user_input = user_input.strip()
 
                 # Handle empty input
                 if not user_input:
@@ -268,13 +277,13 @@ async def run_cli():
                                     )
                                     autonomy_mode = new_mode
                                     print(f"\nMode changed to: {autonomy_mode.name}")
-                                    print("Starting new session with new mode...")
                                     await session.disconnect()
                                     session = DesignSession(
                                         working_dir=working_dir,
                                         autonomy_mode=autonomy_mode,
                                     )
-                                    await session.connect()
+                                    with Spinner("Starting new session..."):
+                                        await session.connect()
                                     logger.info("New session started with new mode")
                                     print("✓ New session started\n")
                                 else:
@@ -288,12 +297,12 @@ async def run_cli():
                     elif command == "/new":
                         # Disconnect current session and create a new one
                         logger.info("Starting new session (clearing context)")
-                        print("\nStarting new session...")
                         await session.disconnect()
                         session = DesignSession(
                             working_dir=working_dir, autonomy_mode=autonomy_mode
                         )
-                        await session.connect()
+                        with Spinner("Starting new session..."):
+                            await session.connect()
                         logger.info("New session started")
                         print("✓ New session started (context cleared)\n")
                         continue
@@ -312,29 +321,59 @@ async def run_cli():
                         continue
 
                 # Send to agent and stream response
-                print("\n🤖 Pygmalion: ", end="", flush=True)
+                # Show spinner while waiting for first response
+                spinner = Spinner("Thinking...")
+                spinner.start()
 
                 response_started = False
                 last_char = ""
-                async for text in session.send(user_input):
-                    if not response_started:
-                        response_started = True
-                    # Add space between text blocks if needed
-                    # (prevents "file.Now" when Claude writes, uses tool, continues)
-                    if last_char and text:
-                        needs_space = (
-                            last_char not in " \n\t"
-                            and text[0] not in " \n\t"
-                            and last_char in ".!?:)"
-                        )
-                        if needs_space:
-                            print(" ", end="", flush=True)
-                    print(text, end="", flush=True)
-                    if text:
-                        last_char = text[-1]
+                tool_spinner = None
+                try:
+                    async for msg_type, content in session.send(user_input):
+                        if msg_type == "text":
+                            if not response_started:
+                                # Stop initial spinner and show response label
+                                spinner.stop()
+                                print("🤖 Pygmalion: ", end="", flush=True)
+                                response_started = True
 
-                if not response_started:
-                    print("(No response received)")
+                            # If we had a tool spinner running, stop it before showing text
+                            if tool_spinner:
+                                tool_spinner.stop()
+                                tool_spinner = None
+
+                            # Add space between text blocks if needed
+                            # (prevents "file.Now" when Claude writes, uses tool, continues)
+                            if last_char and content:
+                                needs_space = (
+                                    last_char not in " \n\t"
+                                    and content[0] not in " \n\t"
+                                    and last_char in ".!?:)"
+                                )
+                                if needs_space:
+                                    print(" ", end="", flush=True)
+                            print(content, end="", flush=True)
+                            if content:
+                                last_char = content[-1]
+
+                        elif msg_type == "tool_use":
+                            # Stop any existing tool spinner
+                            if tool_spinner:
+                                tool_spinner.stop()
+                            # Print newline so spinner appears on new line
+                            print()
+                            # Start new spinner for this tool
+                            tool_spinner = Spinner(f"Working ({content})...")
+                            tool_spinner.start()
+
+                    if not response_started:
+                        spinner.stop()
+                        print("🤖 Pygmalion: (No response received)")
+                finally:
+                    # Ensure spinners are stopped even if error occurs
+                    spinner.stop()
+                    if tool_spinner:
+                        tool_spinner.stop()
 
                 print()  # New line after response
 

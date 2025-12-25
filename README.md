@@ -155,6 +155,7 @@ Pygmalion provides user-friendly error messages with suggestions:
 
 - `claude-agent-sdk` - Core agent functionality
 - `python-dotenv` - Environment variable management
+- `prompt-toolkit` - Enhanced command-line input with history and editing
 - `weasyprint` (optional) - PDF generation
 - `google-genai` (optional) - Gemini Imagen 4.0 integration (requires billing account)
 
@@ -191,7 +192,7 @@ This project is being built incrementally:
 - [ ] Phase 11: GitHub integration (skipped - available in Claude Code)
 - [x] Phase 12: Figma integration (external MCP server)
 - [x] Phase 13: Logging and error handling
-- [ ] Phase 14: CLI polish
+- [x] Phase 14: CLI polish (progress indicators)
 - [ ] Phase 15: Session export
 - [ ] Phase 16: Chrome extension workflow
 - [ ] Phase 17: Design system prompts

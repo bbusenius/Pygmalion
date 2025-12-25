@@ -30,6 +30,7 @@ classifiers = [
 dependencies = [
     "claude-agent-sdk",
     "python-dotenv",
+    "prompt-toolkit",
 ]
 
 [project.optional-dependencies]
