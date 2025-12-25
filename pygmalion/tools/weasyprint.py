@@ -1,7 +1,7 @@
 """
 WeasyPrint MCP Tools for Pygmalion.
 
-Phase 9: Custom MCP tools for PDF generation.
+Custom MCP tools for PDF generation.
 
 SDK CONCEPTS EXPLAINED:
 -----------------------

@@ -1,7 +1,7 @@
 """
 Configuration management for Pygmalion.
 
-Phase 4: Permission modes and autonomy configuration.
+Manages autonomy modes and other configuration options.
 
 AUTONOMY MODES EXPLAINED:
 -------------------------
@@ -41,8 +41,8 @@ ENVIRONMENT VARIABLES:
 ----------------------
 You can set defaults via environment variables:
   PYGMALION_AUTONOMY_MODE=auto     # Set default autonomy mode
-  PYGMALION_GEMINI_ENABLED=true    # Enable Gemini integration (Phase 8)
-  GEMINI_API_KEY=...               # Gemini API key (Phase 8)
+  PYGMALION_GEMINI_ENABLED=true    # Enable Gemini integration
+  GEMINI_API_KEY=...               # Gemini API key
 """
 
 import os

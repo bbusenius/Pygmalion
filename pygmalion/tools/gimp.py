@@ -1,7 +1,7 @@
 """
 GIMP MCP Tools for Pygmalion.
 
-Phase 8: Custom MCP tools for advanced raster editing.
+Custom MCP tools for advanced raster editing.
 
 SDK CONCEPTS EXPLAINED:
 -----------------------

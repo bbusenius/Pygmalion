@@ -223,27 +223,6 @@ pygmalion/
 └── README.md
 ```
 
-## Development Status
-
-This project is being built incrementally:
-
-- [x] Phase 1: Basic SDK setup with `query()`
-- [x] Phase 2: Persistent sessions with `ClaudeSDKClient`
-- [x] Phase 3: Built-in tools (Read/Write/Edit/Bash)
-- [x] Phase 4: Permission modes and autonomy
-- [x] Phase 5: Front-end design skill
-- [x] Phase 6: Inkscape integration
-- [x] Phase 7: ImageMagick integration
-- [x] Phase 8: GIMP integration
-- [x] Phase 9: PDF generation (WeasyPrint)
-- [x] Phase 10: Optional Gemini integration (Imagen 4.0)
-- [ ] Phase 11: GitHub integration (skipped - available in Claude Code)
-- [x] Phase 12: Figma integration (external MCP server)
-- [x] Phase 13: Logging and error handling
-- [x] Phase 14: CLI polish (progress indicators)
-- [x] Phase 15+16: File management (output directory control, auto-opening)
-- [x] Phase 17: Design customization (CLAUDE.md support via SDK)
-
 ## License
 
 MIT

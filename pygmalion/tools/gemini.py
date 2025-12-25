@@ -1,7 +1,7 @@
 """
 Gemini MCP Tools for Pygmalion.
 
-Phase 10: Optional custom MCP tools for AI image generation.
+Optional custom MCP tools for AI image generation.
 
 SDK CONCEPTS EXPLAINED:
 -----------------------

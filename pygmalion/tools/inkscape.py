@@ -1,7 +1,7 @@
 """
 Inkscape MCP Tools for Pygmalion.
 
-Phase 6: Custom MCP tools for vector graphics processing.
+Custom MCP tools for vector graphics processing.
 
 SDK CONCEPTS EXPLAINED:
 -----------------------

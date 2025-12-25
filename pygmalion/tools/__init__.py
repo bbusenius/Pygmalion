@@ -1,7 +1,7 @@
 """
 Custom MCP tools for design operations.
 
-Phase 6+: MCP tools that extend Claude's capabilities with external tools.
+MCP tools that extend Claude's capabilities with external design tools.
 
 Available tool modules:
 - inkscape: Vector graphics processing (export, convert, query, open GUI)

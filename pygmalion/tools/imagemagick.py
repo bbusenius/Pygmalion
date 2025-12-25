@@ -1,7 +1,7 @@
 """
 ImageMagick MCP Tools for Pygmalion.
 
-Phase 7: Custom MCP tools for raster image processing.
+Custom MCP tools for raster image processing.
 
 SDK CONCEPTS EXPLAINED:
 -----------------------

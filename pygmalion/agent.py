@@ -1,35 +1,36 @@
 """
 Core agent module for Pygmalion.
 
-Phase 4: Permission modes and autonomy configuration.
+This module provides the DesignSession class that manages persistent
+conversations with Claude for iterative design work.
 
 SDK CONCEPTS EXPLAINED:
 -----------------------
 The Claude Agent SDK provides two main ways to interact with Claude:
 
-1. query() - Simple one-off requests (Phase 1)
+1. query() - Simple one-off requests
    - No persistent memory between calls
    - Good for independent tasks
    - Returns an async generator of messages
 
-2. ClaudeSDKClient - Persistent sessions (Phase 2)
+2. ClaudeSDKClient - Persistent sessions
    - Maintains conversation context across multiple exchanges
    - Claude remembers what you discussed previously
    - Essential for iterative design work where you refine outputs
    - Requires explicit connection management (connect/disconnect)
 
-3. Built-in Tools - File & shell access (Phase 3)
+3. Built-in Tools - File & shell access
    - Claude can create, read, and edit files
    - Claude can run shell commands (Inkscape, ImageMagick, etc.)
    - Claude can search the web for design inspiration
    - Tools are enabled via the allowed_tools parameter
 
-4. Permission Modes - Autonomy levels (Phase 4)
+4. Permission Modes - Autonomy levels
    - Control how much Claude can do without asking permission
    - Three modes: APPROVAL, AUTO, FULL_AUTO
    - Configured via the autonomy_mode parameter
 
-5. Skills - Specialized capabilities (Phase 5)
+5. Skills - Specialized capabilities
    - Skills are SKILL.md files that Claude auto-invokes based on context
    - The frontend-design skill guides production-grade UI generation
    - Skills are loaded from .claude/skills/ via setting_sources
@@ -145,12 +146,12 @@ from pygmalion.tools.weasyprint import WEASYPRINT_TOOL_NAMES, create_weasyprint_
 
 # Export public API
 __all__ = [
-    # Phase 1: One-off queries
+    # Simple query functions
     "run_design_query",
     "simple_query",
-    # Phase 2: Persistent sessions
+    # Persistent session class
     "DesignSession",
-    # Phase 4: Autonomy modes
+    # Autonomy modes
     "AutonomyMode",
     # Error types
     "ClaudeSDKError",
@@ -160,8 +161,10 @@ __all__ = [
 
 
 # =============================================================================
-# Phase 1: One-off queries (kept for backwards compatibility and simple tasks)
+# Simple Query Functions
 # =============================================================================
+# These provide one-off queries without persistent sessions.
+# Kept for backwards compatibility and simple tasks.
 
 
 async def run_design_query(
@@ -206,8 +209,10 @@ async def simple_query(prompt: str) -> str:
 
 
 # =============================================================================
-# Phase 2: Persistent sessions with ClaudeSDKClient
+# DesignSession - Persistent Claude Sessions
 # =============================================================================
+# This class wraps ClaudeSDKClient to provide a clean interface for
+# persistent design sessions with context and tool access.
 
 
 class DesignSession:
@@ -700,14 +705,14 @@ Never say just "I created index.html" - always include the full path.
 if __name__ == "__main__":
 
     async def test_one_off():
-        """Test Phase 1 one-off query."""
+        """Test simple one-off query."""
         print("=== Testing one-off query ===")
         result = await simple_query("What is the most important rule of web design?")
         print(result)
         print()
 
     async def test_session():
-        """Test Phase 2 persistent session."""
+        """Test persistent session."""
         print("=== Testing persistent session ===")
         async with DesignSession() as session:
             print(f"Session connected: {session.is_connected}")
