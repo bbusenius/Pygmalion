@@ -205,6 +205,22 @@ async def gemini_generate_image(args: dict[str, Any]) -> dict[str, Any]:
             }
 
         # Save the generated image(s)
+        # Ensure we use absolute paths so files are created in the correct location
+        if not os.path.isabs(output_file):
+            # If path is relative, resolve it against Pygmalion's output directory
+            # This is passed via PYGMALION_OUTPUT_DIR environment variable
+            output_dir = os.environ.get("PYGMALION_OUTPUT_DIR")
+            if output_dir:
+                output_file = os.path.join(output_dir, output_file)
+            else:
+                # Fallback to current working directory
+                output_file = os.path.abspath(output_file)
+
+        # Create parent directories if needed
+        parent_dir = os.path.dirname(output_file)
+        if parent_dir:  # Only create if there's a directory component
+            os.makedirs(parent_dir, exist_ok=True)
+
         if num_images == 1:
             # Single image - save directly
             image_bytes = response.generated_images[0].image.image_bytes
@@ -238,9 +254,15 @@ async def gemini_generate_image(args: dict[str, Any]) -> dict[str, Any]:
                 }
         else:
             # Multiple images - save with numbered suffixes
+            # output_file has already been resolved to absolute path above
             base_name = os.path.splitext(output_file)[0]
             extension = os.path.splitext(output_file)[1] or ".png"
             saved_files = []
+
+            # Create parent directories if needed
+            parent_dir = os.path.dirname(output_file)
+            if parent_dir:  # Only create if there's a directory component
+                os.makedirs(parent_dir, exist_ok=True)
 
             for i, generated_image in enumerate(response.generated_images, 1):
                 numbered_file = f"{base_name}_{i}{extension}"

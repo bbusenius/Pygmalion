@@ -90,6 +90,13 @@ Autonomy Modes (/mode):
   auto      - Auto-approve file edits (faster)
   full_auto - No prompts at all (use with caution!)
 
+Output Directory:
+  Specify where files are created with --output-dir:
+    pygmalion --output-dir ~/my-project
+
+  If not specified, Pygmalion will prompt you on startup.
+  Default location: ~/pygmalion-output
+
 Debug Mode:
   Run with --debug flag for verbose logging:
     pygmalion --debug
@@ -160,14 +167,14 @@ def print_status(session: DesignSession, working_dir: str):
 
     status = f"""
 Session Status:
-  Connected:   {session.is_connected}
-  Messages:    {session.message_count}
-  Mode:        {mode_name} ({mode_desc})
-  Model:       {session.model}
-  Working Dir: {working_dir}
-  Built-in:    {builtin_list}
-  MCP Tools:   {mcp_list}
-  Skills:      {skills_list}
+  Connected:     {session.is_connected}
+  Messages:      {session.message_count}
+  Mode:          {mode_name} ({mode_desc})
+  Model:         {session.model}
+  Output Dir:    {working_dir}
+  Built-in:      {builtin_list}
+  MCP Tools:     {mcp_list}
+  Skills:        {skills_list}
 
 Use /mode to change autonomy level, /new to start fresh.
 """
@@ -192,30 +199,61 @@ Note: Changing mode requires starting a new session.
     print(mode_help)
 
 
-async def run_cli():
+async def run_cli(output_dir: str = None):
     """
     Main CLI loop for Pygmalion with persistent session, tools, and autonomy.
 
     This creates a DesignSession that:
     - Maintains context throughout the entire interaction
-    - Can create and edit files in the current working directory
+    - Can create and edit files in the specified output directory
     - Can run shell commands for design tools
     - Operates at the configured autonomy level
+
+    Args:
+        output_dir: Directory where files should be created. If None, prompts user.
     """
     print_banner()
 
-    # Use current working directory for all file operations
-    working_dir = os.getcwd()
+    # Create prompt session with history for better input handling
+    prompt_session = PromptSession(history=InMemoryHistory())
+
+    # Get output directory from user if not provided
+    if output_dir is None:
+        print("Where should Pygmalion create files?")
+        print("(Enter a directory path, or press Enter to use ~/pygmalion-output)")
+        try:
+            output_dir = await prompt_session.prompt_async("\n📁 Output directory: ")
+            output_dir = output_dir.strip()
+            if not output_dir:
+                output_dir = os.path.expanduser("~/pygmalion-output")
+        except (KeyboardInterrupt, EOFError):
+            print("\nGoodbye!")
+            return
+
+    # Expand ~ and resolve to absolute path
+    working_dir = os.path.abspath(os.path.expanduser(output_dir))
+
+    # Create directory if it doesn't exist
+    if not os.path.exists(working_dir):
+        try:
+            os.makedirs(working_dir, exist_ok=True)
+            logger.info(f"Created output directory: {working_dir}")
+            print(f"✓ Created directory: {working_dir}")
+        except Exception as e:
+            logger.error(f"Failed to create directory {working_dir}: {e}")
+            print(f"❌ Failed to create directory: {e}")
+            print("Please check permissions and try again.")
+            return
+    elif not os.path.isdir(working_dir):
+        print(f"❌ Error: {working_dir} exists but is not a directory")
+        return
 
     # Get default autonomy mode (from env var or default to APPROVAL)
     autonomy_mode = get_default_autonomy_mode()
 
-    print("Type /help for available commands, or just start designing!")
-    print(f"Working directory: {working_dir}")
+    print("\nType /help for available commands, or just start designing!")
+    print(f"Output directory: {working_dir}")
     print(f"Mode: {autonomy_mode.name} (use /mode to change)\n")
-
-    # Create prompt session with history for better input handling
-    prompt_session = PromptSession(history=InMemoryHistory())
 
     # Create a session with the working directory and autonomy mode
     session = DesignSession(working_dir=working_dir, autonomy_mode=autonomy_mode)
@@ -415,6 +453,12 @@ def main():
         action="store_true",
         help="Disable logging to file",
     )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Directory where Pygmalion will create files (default: prompts user)",
+    )
     args = parser.parse_args()
 
     # Set up logging
@@ -422,7 +466,7 @@ def main():
 
     try:
         logger.info("Starting Pygmalion")
-        asyncio.run(run_cli())
+        asyncio.run(run_cli(output_dir=args.output_dir))
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
         print("\nGoodbye!")

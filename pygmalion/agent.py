@@ -107,6 +107,7 @@ Message Types:
 
 import asyncio
 import os
+import subprocess
 from typing import AsyncIterator
 
 # Import from claude-agent-sdk
@@ -370,6 +371,11 @@ class DesignSession:
 
         logger.info("Connecting to Claude SDK...")
 
+        # Set output directory in environment for MCP tools to use
+        # SDK MCP servers run in the same Python process and can access this
+        os.environ["PYGMALION_OUTPUT_DIR"] = self._working_dir
+        logger.debug(f"Set PYGMALION_OUTPUT_DIR={self._working_dir}")
+
         # Create MCP servers for custom tools
         # MCP servers extend Claude with custom functionality
         inkscape_server = create_inkscape_server()
@@ -430,6 +436,24 @@ class DesignSession:
                 ],
             }
 
+        # Custom system prompt additions for Pygmalion
+        system_prompt = f"""
+# File Creation and Path Reporting
+
+CRITICAL: When you create, edit, or save any files, you MUST always report:
+1. The filename
+2. The complete absolute path where the file was created
+
+The current output directory is: {self._working_dir}
+
+Examples:
+- "I've created index.html at /home/user/project/index.html"
+- "I've saved logo.svg at /home/user/project/assets/logo.svg"
+- "I've updated styles.css at /home/user/project/css/styles.css"
+
+Never say just "I created index.html" - always include the full path.
+"""
+
         options = ClaudeAgentOptions(
             cwd=self._working_dir,
             allowed_tools=self._allowed_tools,
@@ -437,6 +461,7 @@ class DesignSession:
             setting_sources=["user", "project"],
             mcp_servers=mcp_servers,
             model=self._model,
+            system_prompt=system_prompt,
         )
 
         # Create and connect the client
@@ -461,12 +486,62 @@ class DesignSession:
             self._is_connected = False
             logger.debug("Disconnected successfully")
 
+    def _auto_open_file(self, file_path: str) -> None:
+        """
+        Automatically open a file based on its extension.
+
+        SVG files -> Inkscape
+        Image files -> GIMP
+        HTML files -> Default browser (xdg-open)
+
+        Args:
+            file_path: Absolute path to the file to open
+        """
+        if not os.path.exists(file_path):
+            logger.debug(f"File does not exist, skipping auto-open: {file_path}")
+            return
+
+        # Get file extension
+        _, ext = os.path.splitext(file_path.lower())
+
+        try:
+            if ext == ".svg":
+                logger.info(f"Auto-opening SVG in Inkscape: {file_path}")
+                subprocess.Popen(
+                    ["inkscape", file_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            elif ext in [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"]:
+                logger.info(f"Auto-opening image in GIMP: {file_path}")
+                subprocess.Popen(
+                    ["gimp", file_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            elif ext in [".html", ".htm"]:
+                logger.info(f"Auto-opening HTML in browser: {file_path}")
+                subprocess.Popen(
+                    ["xdg-open", file_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            else:
+                logger.debug(f"No auto-open handler for extension: {ext}")
+        except FileNotFoundError as e:
+            logger.warning(f"Failed to auto-open {file_path}: {e}")
+        except Exception as e:
+            logger.error(f"Error auto-opening {file_path}: {e}")
+
     async def send(self, prompt: str) -> AsyncIterator[tuple[str, str]]:
         """
         Send a message to Claude and stream the response.
 
         This is the main method for interacting with the design session.
         Each call maintains context from previous exchanges.
+
+        Files created during the session (SVG, images, HTML) are automatically
+        opened in the appropriate application.
 
         Args:
             prompt: Your design request or follow-up instruction
@@ -493,6 +568,9 @@ class DesignSession:
                 "or call connect() first."
             )
 
+        # Track files created during this interaction for auto-opening
+        created_files = []
+
         # Send the prompt to Claude
         await self._client.query(prompt)
         self._message_count += 1
@@ -510,8 +588,69 @@ class DesignSession:
                         tool_name = block.name
                         logger.debug(f"ToolUseBlock detected: {tool_name}")
                         yield ("tool_use", tool_name)
+
+                        # Track file creations for auto-opening
+                        # Check if this is a file-creation tool
+                        if tool_name == "Write":
+                            # Write tool creates new files
+                            file_path = block.input.get("file_path")
+                            if file_path:
+                                # Convert to absolute path
+                                abs_path = os.path.abspath(
+                                    os.path.join(self._working_dir, file_path)
+                                )
+                                created_files.append(abs_path)
+                                logger.debug(f"Tracking file creation: {abs_path}")
+                        elif tool_name == "Edit":
+                            # Edit can create new files if they don't exist
+                            file_path = block.input.get("file_path")
+                            if file_path:
+                                abs_path = os.path.abspath(
+                                    os.path.join(self._working_dir, file_path)
+                                )
+                                # Only track if it's being created for the first time
+                                if not os.path.exists(abs_path):
+                                    created_files.append(abs_path)
+                                    logger.debug(f"Tracking file creation: {abs_path}")
+                        elif tool_name == "mcp__gemini__gemini_generate_image":
+                            # Gemini image generation creates PNG files
+                            file_path = block.input.get("output_file")
+                            if file_path:
+                                # Gemini paths are already absolute or relative to cwd
+                                abs_path = os.path.abspath(
+                                    os.path.join(self._working_dir, file_path)
+                                )
+                                created_files.append(abs_path)
+                                logger.debug(f"Tracking Gemini image creation: {abs_path}")
+                        elif tool_name.startswith("mcp__inkscape__"):
+                            # Inkscape tools that might create files
+                            # Check for common output parameters
+                            for param in ["output_file", "output_path", "file_path"]:
+                                file_path = block.input.get(param)
+                                if file_path:
+                                    abs_path = os.path.abspath(
+                                        os.path.join(self._working_dir, file_path)
+                                    )
+                                    created_files.append(abs_path)
+                                    logger.debug(f"Tracking Inkscape file creation: {abs_path}")
+                                    break
+                        elif tool_name.startswith("mcp__imagemagick__") or tool_name.startswith("mcp__gimp__"):
+                            # ImageMagick/GIMP tools that might create files
+                            for param in ["output_file", "output_path", "file_path"]:
+                                file_path = block.input.get(param)
+                                if file_path:
+                                    abs_path = os.path.abspath(
+                                        os.path.join(self._working_dir, file_path)
+                                    )
+                                    created_files.append(abs_path)
+                                    logger.debug(f"Tracking image file creation: {abs_path}")
+                                    break
                     else:
                         logger.debug(f"Unknown block type: {type(block).__name__}")
+
+        # After response is complete, auto-open created files
+        for file_path in created_files:
+            self._auto_open_file(file_path)
 
     async def __aenter__(self) -> "DesignSession":
         """Async context manager entry - connects the session."""

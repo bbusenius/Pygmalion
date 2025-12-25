@@ -86,9 +86,21 @@ Skills: frontend-design
 # Start the interactive CLI
 pygmalion
 
+# Or specify an output directory
+pygmalion --output-dir ~/my-project
+
 # Or run the module directly
 python -m pygmalion.main
 ```
+
+If you don't specify `--output-dir`, Pygmalion will prompt you for a directory when it starts. This gives you complete control over where files are created.
+
+### Auto-Opening Files
+
+Pygmalion automatically opens created files in the appropriate application:
+- **SVG files** → Inkscape
+- **Image files** (PNG, JPG, etc.) → GIMP
+- **HTML files** → Default browser
 
 ### Example Session
 
@@ -98,6 +110,7 @@ Pygmalion maintains conversation context, so you can iterate on designs:
 🎨 You: Create a responsive navigation bar with a logo and three menu items
 
 🤖 Pygmalion: [Claude generates the HTML, CSS, and provides explanations]
+               [Browser automatically opens with the page]
 
 🎨 You [1]: Make it sticky at the top of the page
 
@@ -193,8 +206,7 @@ This project is being built incrementally:
 - [x] Phase 12: Figma integration (external MCP server)
 - [x] Phase 13: Logging and error handling
 - [x] Phase 14: CLI polish (progress indicators)
-- [ ] Phase 15: Session export
-- [ ] Phase 16: Chrome extension workflow
+- [x] Phase 15+16: File management (output directory control, auto-opening)
 - [ ] Phase 17: Design system prompts
 
 ## License
