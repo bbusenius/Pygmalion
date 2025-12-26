@@ -137,3 +137,20 @@ def is_figma_enabled() -> bool:
     has_token = bool(os.environ.get("FIGMA_ACCESS_TOKEN", "").strip())
 
     return enabled in ("true", "1", "yes", "on") and has_token
+
+
+def is_grok_enabled() -> bool:
+    """
+    Check if Grok MCP integration is enabled via environment variable.
+
+    Returns True if PYGMALION_GROK_ENABLED is set to a truthy value
+    AND XAI_API_KEY is present AND GROK_MCP_PATH is set.
+
+    Note: Grok MCP server (https://github.com/merterbak/Grok-MCP) must be
+    installed separately. Provides image generation and vision capabilities.
+    """
+    enabled = os.environ.get("PYGMALION_GROK_ENABLED", "").lower()
+    has_key = bool(os.environ.get("XAI_API_KEY", "").strip())
+    has_path = bool(os.environ.get("GROK_MCP_PATH", "").strip())
+
+    return enabled in ("true", "1", "yes", "on") and has_key and has_path

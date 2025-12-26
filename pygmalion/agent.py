@@ -107,9 +107,11 @@ Message Types:
 """
 
 import asyncio
+import json
 import os
 import subprocess
 from typing import AsyncIterator
+import urllib.request
 
 # Import from claude-agent-sdk
 from claude_agent_sdk import (
@@ -120,7 +122,9 @@ from claude_agent_sdk import (
     CLINotFoundError,
     ProcessError,
     TextBlock,
+    ToolResultBlock,
     ToolUseBlock,
+    UserMessage,
     query,
 )
 
@@ -134,6 +138,7 @@ from pygmalion.config import (
     get_default_autonomy_mode,
     is_figma_enabled,
     is_gemini_enabled,
+    is_grok_enabled,
 )
 from pygmalion.tools.gemini import GEMINI_TOOL_NAMES, create_gemini_server
 from pygmalion.tools.gimp import GIMP_TOOL_NAMES, create_gimp_server
@@ -277,6 +282,14 @@ class DesignSession:
             if is_figma_enabled()
             else []
         )  # Optional Figma integration
+        + (
+            [
+                "mcp__grok__generate_image",
+                "mcp__grok__chat_with_vision",
+            ]
+            if is_grok_enabled()
+            else []
+        )  # Optional Grok integration (image gen + vision)
     )
 
     # Available Claude models
@@ -472,6 +485,16 @@ class DesignSession:
                 ],
             }
 
+        # Add Grok MCP server if enabled
+        # Grok is an external MCP server (runs as separate Python process via UV)
+        if is_grok_enabled():
+            grok_path = os.environ.get("GROK_MCP_PATH", "")
+            mcp_servers["grok"] = {
+                "command": "uv",
+                "args": ["--directory", grok_path, "run", "python", "main.py"],
+                "env": {"XAI_API_KEY": os.environ.get("XAI_API_KEY", "")},
+            }
+
         # Custom system prompt additions for Pygmalion
         system_prompt = f"""
 # File Creation and Path Reporting
@@ -606,6 +629,8 @@ Never say just "I created index.html" - always include the full path.
 
         # Track files created during this interaction for auto-opening
         created_files = []
+        # Track the last tool used (for handling results)
+        last_tool_used = None
 
         # Send the prompt to Claude
         await self._client.query(prompt)
@@ -622,6 +647,7 @@ Never say just "I created index.html" - always include the full path.
                     elif isinstance(block, ToolUseBlock):
                         # Notify that a tool is being used
                         tool_name = block.name
+                        last_tool_used = tool_name  # Track for result handling
                         logger.debug(f"ToolUseBlock detected: {tool_name}")
                         yield ("tool_use", tool_name)
 
@@ -683,6 +709,47 @@ Never say just "I created index.html" - always include the full path.
                                     break
                     else:
                         logger.debug(f"Unknown block type: {type(block).__name__}")
+            elif isinstance(message, UserMessage):
+                # Handle tool results for special cases like Grok image generation
+                if last_tool_used == "mcp__grok__generate_image":
+                    # Grok returns image URLs that need to be downloaded
+                    for block in message.content:
+                        if isinstance(block, ToolResultBlock):
+                            try:
+                                # SDK returns MCP content format: [{"type": "text", "text": "..."}]
+                                result_data = {}
+                                for item in block.content:
+                                    if isinstance(item, dict) and item.get("type") == "text":
+                                        result_data = json.loads(item.get("text", ""))
+                                        break
+                                images = result_data.get("images", [])
+
+                                # Download each image
+                                for idx, img in enumerate(images):
+                                    url = img.get("url")
+                                    if url:
+                                        # Generate filename with extension from URL
+                                        ext = os.path.splitext(url)[1]
+                                        filename = f"grok_image_{idx + 1}{ext}"
+                                        file_path = os.path.join(self._working_dir, filename)
+
+                                        # Download the image with browser-like headers
+                                        logger.debug(f"Downloading Grok image from {url}")
+                                        req = urllib.request.Request(
+                                            url,
+                                            headers={
+                                                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                                            }
+                                        )
+                                        with urllib.request.urlopen(req) as response:
+                                            with open(file_path, "wb") as f:
+                                                f.write(response.read())
+
+                                        # Track for auto-opening
+                                        created_files.append(file_path)
+                                        logger.debug(f"Downloaded Grok image to {file_path}")
+                            except (json.JSONDecodeError, KeyError, Exception) as e:
+                                logger.error(f"Failed to download Grok image: {e}")
 
         # After response is complete, auto-open created files
         for file_path in created_files:

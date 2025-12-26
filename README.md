@@ -265,6 +265,29 @@ Pygmalion provides user-friendly error messages with suggestions:
 - `weasyprint` (optional) - PDF generation
 - `google-genai` (optional) - Gemini Imagen 4.0 integration (requires billing account)
 
+### External MCP Server Integrations (Optional)
+
+These integrations require separate installation and configuration via environment variables in your `.env` file:
+
+**Figma** - Import designs from Figma files
+- Requires: Node.js (npx)
+- Get access token: https://www.figma.com/developers/api#access-tokens
+- Environment variables:
+  ```bash
+  PYGMALION_FIGMA_ENABLED=true
+  FIGMA_ACCESS_TOKEN=figd_...
+  ```
+
+**Grok** - AI image generation and vision capabilities via xAI
+- Requires: [Grok MCP](https://github.com/merterbak/Grok-MCP) installed separately
+- Get API key: https://console.x.ai/
+- Environment variables:
+  ```bash
+  PYGMALION_GROK_ENABLED=true
+  XAI_API_KEY=xai-...
+  GROK_MCP_PATH=/path/to/Grok-MCP
+  ```
+
 ## Project Structure
 
 ```
