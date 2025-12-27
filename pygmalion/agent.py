@@ -109,6 +109,7 @@ Message Types:
 import asyncio
 import json
 import os
+import shutil
 import subprocess
 from typing import AsyncIterator
 import urllib.request
@@ -163,6 +164,74 @@ __all__ = [
     "CLINotFoundError",
     "ProcessError",
 ]
+
+
+# =============================================================================
+# Skill Management
+# =============================================================================
+
+
+def get_pygmalion_dir() -> str:
+    """Get the Pygmalion installation directory."""
+    # This file is at pygmalion/agent.py, so go up one level to get package root
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def extract_tool_result_text(block: "ToolResultBlock") -> str | None:
+    """Extract text content from a ToolResultBlock."""
+    for item in block.content:
+        if isinstance(item, dict) and item.get("type") == "text":
+            return item.get("text", "")
+    return None
+
+
+def is_tool_error(text: str) -> bool:
+    """Check if tool result text indicates an error."""
+    if not text:
+        return False
+    error_indicators = ["error:", "failed", "not found", "not created"]
+    text_lower = text.lower()
+    return any(indicator in text_lower for indicator in error_indicators)
+
+
+def setup_skills(output_dir: str) -> None:
+    """
+    Copy Pygmalion's bundled skills to the output directory.
+
+    Skills are copied to {output_dir}/.claude/skills/ so the SDK can find them.
+    Existing skills are updated (not preserved) to ensure users get latest versions.
+
+    Args:
+        output_dir: The output directory where skills should be installed
+    """
+    pygmalion_skills_dir = os.path.join(get_pygmalion_dir(), ".claude", "skills")
+    output_skills_dir = os.path.join(output_dir, ".claude", "skills")
+
+    # Check if Pygmalion has any bundled skills
+    if not os.path.isdir(pygmalion_skills_dir):
+        logger.debug("No bundled skills found in Pygmalion directory")
+        return
+
+    # Ensure output skills directory exists
+    os.makedirs(output_skills_dir, exist_ok=True)
+
+    # Copy each skill from Pygmalion to output directory
+    for skill_name in os.listdir(pygmalion_skills_dir):
+        src_skill_path = os.path.join(pygmalion_skills_dir, skill_name)
+        dst_skill_path = os.path.join(output_skills_dir, skill_name)
+
+        # Only copy directories that contain SKILL.md
+        if not os.path.isdir(src_skill_path):
+            continue
+        if not os.path.exists(os.path.join(src_skill_path, "SKILL.md")):
+            continue
+
+        # Copy/update the skill directory
+        if os.path.exists(dst_skill_path):
+            # Remove existing to ensure clean update
+            shutil.rmtree(dst_skill_path)
+        shutil.copytree(src_skill_path, dst_skill_path)
+        logger.debug(f"Installed skill '{skill_name}' to {dst_skill_path}")
 
 
 # =============================================================================
@@ -425,6 +494,9 @@ class DesignSession:
         os.environ["PYGMALION_OUTPUT_DIR"] = self._working_dir
         logger.debug(f"Set PYGMALION_OUTPUT_DIR={self._working_dir}")
 
+        # Copy bundled skills to output directory so SDK can find them
+        setup_skills(self._working_dir)
+
         # Create MCP servers for custom tools
         # MCP servers extend Claude with custom functionality
         inkscape_server = create_inkscape_server()
@@ -552,6 +624,7 @@ Never say just "I created index.html" - always include the full path.
         SVG files -> Inkscape
         Image files -> GIMP
         HTML files -> Default browser (xdg-open)
+        PDF files -> Default PDF viewer (xdg-open)
 
         Args:
             file_path: Absolute path to the file to open
@@ -580,6 +653,13 @@ Never say just "I created index.html" - always include the full path.
                 )
             elif ext in [".html", ".htm"]:
                 logger.info(f"Auto-opening HTML in browser: {file_path}")
+                subprocess.Popen(
+                    ["xdg-open", file_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            elif ext == ".pdf":
+                logger.info(f"Auto-opening PDF in default viewer: {file_path}")
                 subprocess.Popen(
                     ["xdg-open", file_path],
                     stdout=subprocess.DEVNULL,
@@ -651,6 +731,12 @@ Never say just "I created index.html" - always include the full path.
                         logger.debug(f"ToolUseBlock detected: {tool_name}")
                         yield ("tool_use", tool_name)
 
+                        # Log skill invocations explicitly
+                        if tool_name == "Skill":
+                            skill_name = block.input.get("skill", "unknown")
+                            logger.info(f"Skill invoked: {skill_name}")
+                            yield ("skill_invoked", skill_name)
+
                         # Track file creations for auto-opening
                         # Check if this is a file-creation tool
                         if tool_name == "Write":
@@ -707,9 +793,25 @@ Never say just "I created index.html" - always include the full path.
                                     created_files.append(abs_path)
                                     logger.debug(f"Tracking image file creation: {abs_path}")
                                     break
+                        elif tool_name == "mcp__weasyprint__html_to_pdf":
+                            # WeasyPrint creates PDF files
+                            file_path = block.input.get("output_file")
+                            if file_path:
+                                abs_path = os.path.abspath(
+                                    os.path.join(self._working_dir, file_path)
+                                )
+                                created_files.append(abs_path)
+                                logger.debug(f"Tracking WeasyPrint PDF creation: {abs_path}")
                     else:
                         logger.debug(f"Unknown block type: {type(block).__name__}")
             elif isinstance(message, UserMessage):
+                # Surface tool errors to the user
+                for block in message.content:
+                    if isinstance(block, ToolResultBlock):
+                        result_text = extract_tool_result_text(block)
+                        if is_tool_error(result_text):
+                            yield ("tool_error", f"[{last_tool_used}] {result_text}")
+
                 # Handle tool results for special cases like Grok image generation
                 if last_tool_used == "mcp__grok__generate_image":
                     # Grok returns image URLs that need to be downloaded

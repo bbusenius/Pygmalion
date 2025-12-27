@@ -419,6 +419,17 @@ async def run_cli(output_dir: str = None, model: str = None):
                             tool_spinner = Spinner(f"Working ({content})...")
                             tool_spinner.start()
 
+                        elif msg_type == "tool_error":
+                            # Stop spinner and show error
+                            if tool_spinner:
+                                tool_spinner.stop()
+                                tool_spinner = None
+                            print(f"\n⚠️  {content}")
+
+                        elif msg_type == "skill_invoked":
+                            # Show skill invocation
+                            print(f"\n📚 Skill invoked: {content}")
+
                     if not response_started:
                         spinner.stop()
                         print("🤖 Pygmalion: (No response received)")

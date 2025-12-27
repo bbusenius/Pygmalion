@@ -142,22 +142,23 @@ async def html_to_pdf(args: dict[str, Any]) -> dict[str, Any]:
                 ]
             }
 
-        # Build CSS for page size and orientation
-        page_css = f"""
-        @page {{
-            size: {page_size} {orientation};
-            margin: 1in;
-        }}
-        """
+        # Build CSS for page size and orientation (only if explicitly specified)
+        # We don't add margin here - let the HTML control margins for full bleed support
+        stylesheets = []
+        if "page_size" in args or "orientation" in args:
+            page_css = f"""
+            @page {{
+                size: {page_size} {orientation};
+            }}
+            """
+            stylesheets.append(CSS(string=page_css))
 
-        # Prepare stylesheets list
-        stylesheets = [CSS(string=page_css)]
         if css_file:
             stylesheets.append(CSS(filename=css_file))
 
         # Convert HTML to PDF
         html = HTML(filename=input_file)
-        html.write_pdf(output_file, stylesheets=stylesheets)
+        html.write_pdf(output_file, stylesheets=stylesheets or None)
 
         # Check output file was created
         if os.path.exists(output_file):

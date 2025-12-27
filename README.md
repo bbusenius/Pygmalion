@@ -48,13 +48,19 @@ export ANTHROPIC_API_KEY=sk-ant-api03-...
 
 Or create a `.env` file (copy from `.env.example`).
 
-## Frontend Design Skill Setup (Recommended)
+## Skills
 
-Pygmalion can use the `frontend-design` skill to generate distinctive, production-grade web interfaces with bold aesthetics.
+Pygmalion uses skills to guide Claude's design work. Skills in Pygmalion's `.claude/skills/` directory are automatically copied to your output directory on session startup, making them available to the SDK.
 
-### Option 1: Install via Claude Code (Global)
+### Bundled Skills
 
-If you have Claude Code installed:
+**print-design** - Creates print-ready designs (posters, flyers, business cards, resumes) using HTML/WeasyPrint or SVG/Inkscape. Includes guidance on full bleed layouts, WeasyPrint CSS limitations, and proper text handling.
+
+### Frontend Design Skill (Recommended)
+
+The `frontend-design` skill generates distinctive, production-grade web interfaces with bold aesthetics. This is Anthropic's skill and must be installed separately.
+
+**Option 1: Install via Claude Code (Global)**
 
 ```bash
 claude /plugin marketplace add anthropics/claude-code
@@ -63,9 +69,9 @@ claude /plugin install frontend-design@anthropics-claude-code
 
 This installs to `~/.claude/skills/` and is available for all projects.
 
-### Option 2: Install to Project Directory (Local)
+**Option 2: Install to Pygmalion Directory**
 
-Install to this project only:
+Install to Pygmalion so it gets copied to all output directories:
 
 ```bash
 mkdir -p .claude/skills/frontend-design
@@ -75,9 +81,9 @@ curl -o .claude/skills/frontend-design/SKILL.md \
 
 ### Verification
 
-Run `pygmalion` and type `/status`. You should see:
+Run `pygmalion` and type `/status`. You should see your installed skills:
 ```
-Skills: frontend-design
+Skills: frontend-design, print-design
 ```
 
 ## Usage
@@ -95,12 +101,30 @@ python -m pygmalion.main
 
 If you don't specify `--output-dir`, Pygmalion will prompt you for a directory when it starts. This gives you complete control over where files are created.
 
+### Model Selection
+
+Choose which Claude model to use with the `--model` flag:
+
+```bash
+# Use Claude Opus 4.5 (most capable, best for complex designs)
+pygmalion --model opus
+
+# Use Claude Sonnet 4.5 (default, balanced performance)
+pygmalion --model sonnet
+
+# Use Claude Haiku 3.5 (fastest, good for simple tasks)
+pygmalion --model haiku
+```
+
+You can also change models during a session with the `/model` command.
+
 ### Auto-Opening Files
 
 Pygmalion automatically opens created files in the appropriate application:
 - **SVG files** → Inkscape
 - **Image files** (PNG, JPG, etc.) → GIMP
 - **HTML files** → Default browser
+- **PDF files** → Default PDF viewer
 
 ### Customization with CLAUDE.md
 
