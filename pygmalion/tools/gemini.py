@@ -62,6 +62,14 @@ GEMINI 3 PRO IMAGE (4K):
 - 4K resolution (~4096px) via gemini-3-pro-image-preview model
 - Single image generation only (no batch support)
 - Preview model - may change without notice
+
+SVG GENERATION:
+---------------
+- Direct SVG code generation via Gemini text models
+- Default model: gemini-2.5-flash (fast, good quality)
+- Override via PYGMALION_GEMINI_SVG_MODEL env var or model parameter
+- Outputs clean SVG code suitable for logos, icons, and illustrations
+- Supports style guidance (minimal, geometric, organic, detailed, flat)
 """
 
 import os
@@ -77,6 +85,49 @@ try:
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
+
+
+def _check_gemini_available() -> dict[str, Any] | None:
+    """Check if Gemini SDK is available. Returns error response or None if OK."""
+    if not GEMINI_AVAILABLE:
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        "Google Gemini SDK not installed. Install it with:\n"
+                        "  pip install google-genai\n"
+                        "Or install Pygmalion with Gemini support:\n"
+                        '  pip install -e ".[gemini]"\n\n'
+                        "Note: The old google-generativeai package is deprecated. "
+                        "Use google-genai instead."
+                    ),
+                }
+            ]
+        }
+    return None
+
+
+def _check_api_key() -> tuple[str | None, dict[str, Any] | None]:
+    """Check for API key. Returns (api_key, error_response) - one will be None."""
+    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        return None, {
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        "GEMINI_API_KEY or GOOGLE_API_KEY environment variable not set.\n\n"
+                        "To use Gemini:\n"
+                        "1. Get an API key from: https://aistudio.google.com/apikey\n"
+                        "2. Set the environment variable:\n"
+                        "   export GEMINI_API_KEY=your-key-here\n"
+                        "3. Restart your session"
+                    ),
+                }
+            ]
+        }
+    return api_key, None
 
 
 # =============================================================================
@@ -234,42 +285,12 @@ async def _generate_image_4k(
 )
 async def gemini_generate_image(args: dict[str, Any]) -> dict[str, Any]:
     """Generate images using Google Gemini's Imagen 4.0 model."""
-    # Check if Gemini is available
-    if not GEMINI_AVAILABLE:
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": (
-                        "Google Gemini SDK not installed. Install it with:\n"
-                        "  pip install google-genai\n"
-                        "Or install Pygmalion with Gemini support:\n"
-                        '  pip install -e ".[gemini]"\n\n'
-                        "Note: The old google-generativeai package is deprecated. "
-                        "Use google-genai instead."
-                    ),
-                }
-            ]
-        }
+    if error := _check_gemini_available():
+        return error
 
-    # Check for API key (supports both GEMINI_API_KEY and GOOGLE_API_KEY)
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": (
-                        "GEMINI_API_KEY or GOOGLE_API_KEY environment variable not set.\n\n"
-                        "To use Gemini image generation:\n"
-                        "1. Get an API key from: https://aistudio.google.com/apikey\n"
-                        "2. Set the environment variable:\n"
-                        "   export GEMINI_API_KEY=your-key-here\n"
-                        "3. Restart your session"
-                    ),
-                }
-            ]
-        }
+    api_key, error = _check_api_key()
+    if error:
+        return error
 
     try:
         # Create Gemini client
@@ -492,13 +513,279 @@ async def gemini_generate_image(args: dict[str, Any]) -> dict[str, Any]:
 
 
 # =============================================================================
+# Gemini SVG Generation Tool
+# =============================================================================
+
+# Default SVG model - can be overridden via env var or parameter
+DEFAULT_SVG_MODEL = "gemini-2.5-flash"
+
+
+@tool(
+    "gemini_generate_svg",
+    "Generate SVG vector graphics from text descriptions using Google Gemini. "
+    "Creates clean, scalable vector code for any SVG need: logos, icons, "
+    "illustrations, diagrams, or graphic elements. Output is pure SVG code "
+    "saved to a file. Requires GEMINI_API_KEY environment variable.",
+    {
+        "type": "object",
+        "properties": {
+            "prompt": {
+                "type": "string",
+                "description": "Text description of the SVG to generate. Be specific "
+                "about shapes, colors, style, and composition. Can request anything "
+                "from simple icons to complete logos to complex illustrations.",
+            },
+            "output_file": {
+                "type": "string",
+                "description": "Path where the SVG file should be saved (e.g., "
+                "'logo.svg'). Must end with .svg extension.",
+            },
+            "style": {
+                "type": "string",
+                "enum": ["minimal", "geometric", "organic", "detailed", "flat"],
+                "description": "Visual style hint (default: minimal). "
+                "minimal: clean lines, few elements. "
+                "geometric: precise shapes. "
+                "organic: flowing curves. "
+                "detailed: more complexity. "
+                "flat: solid colors, no gradients.",
+            },
+            "viewbox_size": {
+                "type": "integer",
+                "minimum": 24,
+                "maximum": 1024,
+                "description": "Size of the SVG viewBox (square). "
+                "Default: 100. Smaller (24-64) for icons, larger for detailed work.",
+            },
+            "model": {
+                "type": "string",
+                "description": "Gemini model to use for generation. "
+                "Default: gemini-2.5-flash (or PYGMALION_GEMINI_SVG_MODEL env var). "
+                "Options: gemini-2.5-flash, gemini-3-flash, gemini-3-pro, etc.",
+            },
+        },
+        "required": ["prompt", "output_file"],
+    },
+)
+async def gemini_generate_svg(args: dict[str, Any]) -> dict[str, Any]:
+    """Generate SVG vector graphics using Google Gemini."""
+    if error := _check_gemini_available():
+        return error
+
+    api_key, error = _check_api_key()
+    if error:
+        return error
+
+    try:
+        client = genai.Client(api_key=api_key)
+
+        prompt = args["prompt"]
+        output_file = args["output_file"]
+        style = args.get("style", "minimal")
+        viewbox_size = args.get("viewbox_size", 100)
+
+        # Model selection: parameter > env var > default
+        model = args.get("model")
+        if not model:
+            model = os.environ.get("PYGMALION_GEMINI_SVG_MODEL", DEFAULT_SVG_MODEL)
+
+        if not output_file.lower().endswith(".svg"):
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Error: output_file must end with .svg extension",
+                    }
+                ]
+            }
+
+        if not prompt or len(prompt.strip()) < 3:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Error: Prompt must be at least 3 characters long",
+                    }
+                ]
+            }
+
+        # Style guidance for the prompt
+        style_guidance = {
+            "minimal": "Clean lines, minimal elements, simplicity.",
+            "geometric": "Precise geometric shapes, mathematical precision.",
+            "organic": "Flowing curves, bezier paths, natural forms.",
+            "detailed": "Fine details, textures, ornamentation.",
+            "flat": "Solid flat colors only, no gradients or effects.",
+        }
+
+        svg_prompt = f"""Generate clean, well-structured SVG code for:
+
+{prompt}
+
+Style guidance: {style_guidance.get(style, style_guidance['minimal'])}
+
+Requirements:
+- Output ONLY valid SVG code, no explanation or markdown
+- Use viewBox="0 0 {viewbox_size} {viewbox_size}"
+- Do NOT include width/height attributes (viewBox handles scaling)
+- Keep paths clean and optimized
+- Ensure the design is centered and well-composed
+- Start with <svg and end with </svg>
+
+SVG code:"""
+
+        response = client.models.generate_content(
+            model=model,
+            contents=svg_prompt,
+        )
+
+        if not response.candidates or not response.candidates[0].content.parts:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "SVG generation failed. The model did not return content.\n"
+                            "Try rephrasing your prompt or try again later."
+                        ),
+                    }
+                ]
+            }
+
+        svg_content = response.candidates[0].content.parts[0].text.strip()
+
+        # Remove markdown code blocks if present
+        if svg_content.startswith("```"):
+            lines = svg_content.split("\n")
+            start_idx = 1
+            end_idx = len(lines)
+            for i, line in enumerate(lines):
+                if line.startswith("```") and i > 0:
+                    end_idx = i
+                    break
+            svg_content = "\n".join(lines[start_idx:end_idx]).strip()
+
+        # Extract SVG if embedded in other text
+        if not svg_content.startswith("<svg"):
+            svg_start = svg_content.find("<svg")
+            svg_end = svg_content.rfind("</svg>")
+            if svg_start != -1 and svg_end != -1:
+                svg_content = svg_content[svg_start : svg_end + 6]
+            else:
+                return {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "SVG generation produced invalid output.\n"
+                                "The response did not contain valid SVG code.\n"
+                                "Try a more specific prompt."
+                            ),
+                        }
+                    ]
+                }
+
+        # Resolve output path
+        abs_output_file = output_file
+        if not os.path.isabs(output_file):
+            output_dir = os.environ.get("PYGMALION_OUTPUT_DIR")
+            if output_dir:
+                abs_output_file = os.path.join(output_dir, output_file)
+            else:
+                abs_output_file = os.path.abspath(output_file)
+
+        parent_dir = os.path.dirname(abs_output_file)
+        if parent_dir:
+            os.makedirs(parent_dir, exist_ok=True)
+
+        with open(abs_output_file, "w", encoding="utf-8") as f:
+            f.write(svg_content)
+
+        if os.path.exists(abs_output_file):
+            file_size = os.path.getsize(abs_output_file)
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"Successfully generated SVG with Gemini\n"
+                            f"Model: {model}\n"
+                            f"Prompt: {prompt}\n"
+                            f"Output: {abs_output_file} ({file_size:,} bytes)\n"
+                            f"Style: {style}\n"
+                            f"ViewBox: 0 0 {viewbox_size} {viewbox_size}"
+                        ),
+                    }
+                ]
+            }
+        else:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "SVG generation completed but file save failed",
+                    }
+                ]
+            }
+
+    except Exception as e:
+        error_msg = str(e)
+
+        # Check for specific error types
+        if "not found" in error_msg.lower() or "404" in error_msg:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"Model not found: {model}\n"
+                            f"Error: {error_msg}\n\n"
+                            f"Available models:\n"
+                            f"- gemini-2.5-flash (fast, stable)\n"
+                            f"- gemini-2.5-pro (powerful, stable)\n"
+                            f"- gemini-3-flash (preview)\n\n"
+                            f"Note: Model names may change. Use stable 2.5 models for reliability."
+                        ),
+                    }
+                ]
+            }
+        elif "quota" in error_msg.lower() or ("rate" in error_msg.lower() and "limit" in error_msg.lower()):
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"Gemini API rate limit exceeded.\nError: {error_msg}",
+                    }
+                ]
+            }
+        elif "api key" in error_msg.lower() or "auth" in error_msg.lower():
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"Gemini API authentication error.\nError: {error_msg}",
+                    }
+                ]
+            }
+        else:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"Gemini SVG generation error: {error_msg}",
+                    }
+                ]
+            }
+
+
+# =============================================================================
 # MCP Server Creation
 # =============================================================================
 
 
 def create_gemini_server():
     """
-    Create the Gemini MCP server with image generation tools.
+    Create the Gemini MCP server with image and SVG generation tools.
 
     Returns an MCP server that can be conditionally registered with
     ClaudeAgentOptions based on configuration.
@@ -514,11 +801,12 @@ def create_gemini_server():
     return create_sdk_mcp_server(
         name="gemini",
         version="1.0.0",
-        tools=[gemini_generate_image],
+        tools=[gemini_generate_image, gemini_generate_svg],
     )
 
 
 # Tool names for allowed_tools configuration
 GEMINI_TOOL_NAMES = [
     "mcp__gemini__gemini_generate_image",
+    "mcp__gemini__gemini_generate_svg",
 ]

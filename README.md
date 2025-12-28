@@ -6,7 +6,8 @@ AI-powered web and graphic design assistant using the Claude Agent SDK.
 
 Pygmalion is your complete design partner, capable of generating:
 - Full websites (HTML/CSS/JS/React)
-- Vector graphics and logos (SVG)
+- Professional logos with color variations (SVG)
+- Vector graphics and illustrations (SVG)
 - Social media graphics
 - Print-ready designs (PDF exports)
 
@@ -54,6 +55,8 @@ Pygmalion uses skills to guide Claude's design work. Skills in Pygmalion's `.cla
 
 ### Bundled Skills
 
+**logo-design** - Creates distinctive, professional logos with proper color variations. Generates logos in three color versions (monotone, two-color, three-color) with layout variations when appropriate. Supports all logo types: wordmarks, lettermarks, iconographic, combination marks, and emblems. Outputs an HTML presentation showing all variations.
+
 **print-design** - Creates print-ready designs (posters, flyers, business cards, resumes) using HTML/WeasyPrint or SVG/Inkscape. Includes guidance on full bleed layouts, WeasyPrint CSS limitations, and proper text handling.
 
 ### Frontend Design Skill (Recommended)
@@ -83,7 +86,7 @@ curl -o .claude/skills/frontend-design/SKILL.md \
 
 Run `pygmalion` and type `/status`. You should see your installed skills:
 ```
-Skills: frontend-design, print-design
+Skills: frontend-design, logo-design, print-design
 ```
 
 ## Usage
@@ -316,7 +319,7 @@ These integrations require separate installation and configuration via environme
 
 Pygmalion supports AI image generation through two providers:
 
-**Gemini (Google)** - Photorealistic images via Imagen 4.0 and Gemini 3 Pro
+**Gemini (Google)** - Photorealistic images and SVG vector graphics
 - Requires: `pip install -e ".[gemini]"` and billing-enabled API key
 - Get API key: https://aistudio.google.com/apikey
 - Environment variables:
@@ -324,13 +327,21 @@ Pygmalion supports AI image generation through two providers:
   PYGMALION_GEMINI_ENABLED=true
   GEMINI_API_KEY=AIza...
   PYGMALION_GEMINI_IMAGE_SIZE=1K  # Options: 1K, 2K, 4K
+  PYGMALION_GEMINI_SVG_MODEL=gemini-2.5-flash  # Optional: Override SVG model
   ```
-- Resolution options:
+- **Raster image resolution options:**
   | Size | Resolution | Model | Batch |
   |------|------------|-------|-------|
   | 1K | ~1024px | Imagen 4.0 | 1-4 images |
   | 2K | ~2048px | Imagen 4.0 | 1-4 images |
   | 4K | ~4096px | Gemini 3 Pro (preview) | 1 image only |
+
+- **SVG vector graphics generation:**
+  - Generate clean, scalable SVG code for logos, icons, illustrations
+  - Default model: `gemini-2.5-flash` (fast, good quality)
+  - Alternative models: `gemini-3-flash`, `gemini-3-pro` (higher quality, slower)
+  - Style options: minimal, geometric, organic, detailed, flat
+  - Example: "Have Gemini generate an SVG of a minimalist mountain logo"
 
 **Grok (xAI)** - Image generation and vision analysis
 - Image generation: Create images from text prompts
