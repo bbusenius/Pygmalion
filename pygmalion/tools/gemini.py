@@ -38,6 +38,7 @@ Set up Gemini integration:
 1. Get API key from https://aistudio.google.com/apikey
 2. Set environment variable: export GEMINI_API_KEY=your-key-here
 3. Install optional dependency: pip install -e ".[gemini]"
+4. Optional: Set default image size: export PYGMALION_GEMINI_IMAGE_SIZE=2K
 
 RATE LIMITS & ERRORS:
 ---------------------
@@ -52,6 +53,7 @@ IMAGEN 4.0 FEATURES:
 - High-fidelity photorealistic images
 - SynthID watermarking for authenticity
 - Support for multiple aspect ratios
+- Configurable resolution: 1K (~1024px) or 2K (~2048px)
 - Text in images capability
 - English-only prompts
 """
@@ -110,6 +112,12 @@ except ImportError:
                 "enum": ["1:1", "3:4", "4:3", "9:16", "16:9"],
                 "description": "Aspect ratio for the generated image (default: 1:1)",
             },
+            "image_size": {
+                "type": "string",
+                "enum": ["1K", "2K"],
+                "description": "Output image resolution: 1K (~1024px) or 2K (~2048px). "
+                "Default: 1K, or PYGMALION_GEMINI_IMAGE_SIZE env var if set.",
+            },
         },
         "required": ["prompt", "output_file"],
     },
@@ -163,6 +171,13 @@ async def gemini_generate_image(args: dict[str, Any]) -> dict[str, Any]:
         num_images = args.get("num_images", 1)
         aspect_ratio = args.get("aspect_ratio", "1:1")
 
+        # Get image_size with env var fallback (default: 1K)
+        default_image_size = os.environ.get("PYGMALION_GEMINI_IMAGE_SIZE", "1K")
+        image_size = args.get("image_size", default_image_size)
+        # Validate image_size
+        if image_size not in ("1K", "2K"):
+            image_size = "1K"
+
         # Validate prompt
         if not prompt or len(prompt.strip()) < 3:
             return {
@@ -178,6 +193,7 @@ async def gemini_generate_image(args: dict[str, Any]) -> dict[str, Any]:
         config = types.GenerateImagesConfig(
             number_of_images=num_images,
             aspect_ratio=aspect_ratio,
+            image_size=image_size,
         )
 
         response = client.models.generate_images(
@@ -238,6 +254,7 @@ async def gemini_generate_image(args: dict[str, Any]) -> dict[str, Any]:
                                 f"Prompt: {prompt}\n"
                                 f"Output: {output_file} ({file_size:,} bytes)\n"
                                 f"Aspect ratio: {aspect_ratio}\n"
+                                f"Image size: {image_size}\n"
                                 f"Note: Image includes SynthID watermark"
                             ),
                         }
@@ -283,6 +300,7 @@ async def gemini_generate_image(args: dict[str, Any]) -> dict[str, Any]:
                                 f"Prompt: {prompt}\n"
                                 f"Files:\n{files_list}\n"
                                 f"Aspect ratio: {aspect_ratio}\n"
+                                f"Image size: {image_size}\n"
                                 f"Note: Images include SynthID watermark"
                             ),
                         }
