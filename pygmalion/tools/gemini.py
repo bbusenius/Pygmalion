@@ -87,6 +87,10 @@ except ImportError:
     GEMINI_AVAILABLE = False
 
 
+# Valid image sizes for Gemini image generation
+VALID_IMAGE_SIZES = ("1K", "2K", "4K")
+
+
 def _check_gemini_available() -> dict[str, Any] | None:
     """Check if Gemini SDK is available. Returns error response or None if OK."""
     if not GEMINI_AVAILABLE:
@@ -304,14 +308,14 @@ async def gemini_generate_image(args: dict[str, Any]) -> dict[str, Any]:
 
         # Get image_size - env var takes precedence as user's preferred default
         env_image_size = os.environ.get("PYGMALION_GEMINI_IMAGE_SIZE", "").upper()
-        if env_image_size in ("1K", "2K", "4K"):
+        if env_image_size in VALID_IMAGE_SIZES:
             # User set a preference via env var - use it as the default
             image_size = env_image_size
         else:
             # No env var set, use arg or fall back to 1K
             image_size = args.get("image_size", "1K")
         # Validate image_size
-        if image_size not in ("1K", "2K", "4K"):
+        if image_size not in VALID_IMAGE_SIZES:
             image_size = "1K"
 
         # Validate prompt
