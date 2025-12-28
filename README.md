@@ -312,6 +312,40 @@ These integrations require separate installation and configuration via environme
   GROK_MCP_PATH=/path/to/Grok-MCP
   ```
 
+### Image Generation
+
+Pygmalion supports AI image generation through two providers:
+
+**Gemini (Google)** - Photorealistic images via Imagen 4.0 and Gemini 3 Pro
+- Requires: `pip install -e ".[gemini]"` and billing-enabled API key
+- Get API key: https://aistudio.google.com/apikey
+- Environment variables:
+  ```bash
+  PYGMALION_GEMINI_ENABLED=true
+  GEMINI_API_KEY=AIza...
+  PYGMALION_GEMINI_IMAGE_SIZE=1K  # Options: 1K, 2K, 4K
+  ```
+- Resolution options:
+  | Size | Resolution | Model | Batch |
+  |------|------------|-------|-------|
+  | 1K | ~1024px | Imagen 4.0 | 1-4 images |
+  | 2K | ~2048px | Imagen 4.0 | 1-4 images |
+  | 4K | ~4096px | Gemini 3 Pro (preview) | 1 image only |
+
+**Grok (xAI)** - Image generation and vision analysis
+- Image generation: Create images from text prompts
+- Vision/analysis: Analyze existing images, extract colors, identify compositions
+- See Grok MCP configuration above for setup
+
+### Vision and Image Analysis
+
+**Grok Vision** - Analyze images to extract design information. The print-design skill uses this to analyze generated images and determine optimal text placement.
+
+- Identify color palettes, typography, layout patterns
+- Describe image content and composition
+- Useful for recreating designs or extracting style elements
+- Requires Grok MCP integration (see above)
+
 ## Project Structure
 
 ```

@@ -38,7 +38,7 @@ Set up Gemini integration:
 1. Get API key from https://aistudio.google.com/apikey
 2. Set environment variable: export GEMINI_API_KEY=your-key-here
 3. Install optional dependency: pip install -e ".[gemini]"
-4. Optional: Set default image size: export PYGMALION_GEMINI_IMAGE_SIZE=2K
+4. Optional: Set default image size: export PYGMALION_GEMINI_IMAGE_SIZE=2K (or 4K)
 
 RATE LIMITS & ERRORS:
 ---------------------
@@ -56,6 +56,12 @@ IMAGEN 4.0 FEATURES:
 - Configurable resolution: 1K (~1024px) or 2K (~2048px)
 - Text in images capability
 - English-only prompts
+
+GEMINI 3 PRO IMAGE (4K):
+------------------------
+- 4K resolution (~4096px) via gemini-3-pro-image-preview model
+- Single image generation only (no batch support)
+- Preview model - may change without notice
 """
 
 import os
@@ -71,6 +77,109 @@ try:
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
+
+
+# =============================================================================
+# 4K Image Generation Helper (Gemini 3 Pro Preview)
+# =============================================================================
+
+
+async def _generate_image_4k(
+    client: "genai.Client",
+    prompt: str,
+    output_file: str,
+    aspect_ratio: str,
+) -> dict[str, Any]:
+    """
+    Generate a 4K image using Gemini 3 Pro Image Preview model.
+
+    This model uses generate_content() instead of generate_images() and
+    only supports single image generation.
+    """
+    # Gemini 3 Pro supports more aspect ratios than Imagen 4.0
+    # Map our supported ratios (validated elsewhere)
+    config = types.GenerateContentConfig(
+        response_modalities=["IMAGE"],
+        image_config=types.ImageConfig(
+            aspect_ratio=aspect_ratio,
+            image_size="4K",
+        ),
+    )
+
+    response = client.models.generate_content(
+        model="gemini-3-pro-image-preview",
+        contents=prompt,
+        config=config,
+    )
+
+    # Extract image from response parts
+    image_data = None
+    for part in response.candidates[0].content.parts:
+        if hasattr(part, "inline_data") and part.inline_data is not None:
+            image_data = part.inline_data.data
+            break
+
+    if not image_data:
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        "4K image generation failed. The model did not return an image.\n"
+                        "This could be due to:\n"
+                        "- Content policy violation\n"
+                        "- Invalid prompt\n"
+                        "- API rate limit\n\n"
+                        "Try rephrasing your prompt or try again later."
+                    ),
+                }
+            ]
+        }
+
+    # Ensure we use absolute paths
+    abs_output_file = output_file
+    if not os.path.isabs(output_file):
+        output_dir = os.environ.get("PYGMALION_OUTPUT_DIR")
+        if output_dir:
+            abs_output_file = os.path.join(output_dir, output_file)
+        else:
+            abs_output_file = os.path.abspath(output_file)
+
+    # Create parent directories if needed
+    parent_dir = os.path.dirname(abs_output_file)
+    if parent_dir:
+        os.makedirs(parent_dir, exist_ok=True)
+
+    # Save the image
+    with open(abs_output_file, "wb") as f:
+        f.write(image_data)
+
+    if os.path.exists(abs_output_file):
+        file_size = os.path.getsize(abs_output_file)
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        f"Successfully generated 4K image with Gemini 3 Pro (preview)\n"
+                        f"Prompt: {prompt}\n"
+                        f"Output: {abs_output_file} ({file_size:,} bytes)\n"
+                        f"Aspect ratio: {aspect_ratio}\n"
+                        f"Image size: 4K\n"
+                        f"Note: Using preview model (gemini-3-pro-image-preview)"
+                    ),
+                }
+            ]
+        }
+    else:
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "4K image generation completed but file save failed",
+                }
+            ]
+        }
 
 
 # =============================================================================
@@ -114,8 +223,9 @@ except ImportError:
             },
             "image_size": {
                 "type": "string",
-                "enum": ["1K", "2K"],
-                "description": "Output image resolution: 1K (~1024px) or 2K (~2048px). "
+                "enum": ["1K", "2K", "4K"],
+                "description": "Output image resolution: 1K (~1024px), 2K (~2048px), or "
+                "4K (~4096px). 4K uses Gemini 3 Pro preview model. "
                 "Default: 1K, or PYGMALION_GEMINI_IMAGE_SIZE env var if set.",
             },
         },
@@ -171,11 +281,16 @@ async def gemini_generate_image(args: dict[str, Any]) -> dict[str, Any]:
         num_images = args.get("num_images", 1)
         aspect_ratio = args.get("aspect_ratio", "1:1")
 
-        # Get image_size with env var fallback (default: 1K)
-        default_image_size = os.environ.get("PYGMALION_GEMINI_IMAGE_SIZE", "1K")
-        image_size = args.get("image_size", default_image_size)
+        # Get image_size - env var takes precedence as user's preferred default
+        env_image_size = os.environ.get("PYGMALION_GEMINI_IMAGE_SIZE", "").upper()
+        if env_image_size in ("1K", "2K", "4K"):
+            # User set a preference via env var - use it as the default
+            image_size = env_image_size
+        else:
+            # No env var set, use arg or fall back to 1K
+            image_size = args.get("image_size", "1K")
         # Validate image_size
-        if image_size not in ("1K", "2K"):
+        if image_size not in ("1K", "2K", "4K"):
             image_size = "1K"
 
         # Validate prompt
@@ -188,6 +303,23 @@ async def gemini_generate_image(args: dict[str, Any]) -> dict[str, Any]:
                     }
                 ]
             }
+
+        # For 4K, delegate to Gemini 3 Pro (preview model)
+        if image_size == "4K":
+            if num_images > 1:
+                # Gemini 3 Pro only supports single image generation
+                return {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "4K resolution only supports generating 1 image at a time.\n"
+                                "Please set num_images to 1, or use 1K/2K for batch generation."
+                            ),
+                        }
+                    ]
+                }
+            return await _generate_image_4k(client, prompt, output_file, aspect_ratio)
 
         # Generate images using Imagen 4.0
         config = types.GenerateImagesConfig(
