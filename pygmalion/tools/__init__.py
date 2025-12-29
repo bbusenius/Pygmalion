@@ -8,6 +8,7 @@ Available tool modules:
 - imagemagick: Raster image processing (resize, convert, effects, composite)
 - gimp: Advanced raster editing (script-fu, filters, text, compositing)
 - weasyprint: PDF generation (HTML to PDF conversion)
+- potrace: Bitmap tracing (raster to vector conversion)
 - gemini: AI image generation with Imagen 4.0 (optional, requires API key)
 """
 
@@ -18,6 +19,7 @@ from pygmalion.tools.imagemagick import (
     create_imagemagick_server,
 )
 from pygmalion.tools.inkscape import INKSCAPE_TOOL_NAMES, create_inkscape_server
+from pygmalion.tools.potrace import POTRACE_TOOL_NAMES, create_potrace_server
 from pygmalion.tools.weasyprint import WEASYPRINT_TOOL_NAMES, create_weasyprint_server
 
 __all__ = [
@@ -29,6 +31,8 @@ __all__ = [
     "GIMP_TOOL_NAMES",
     "create_weasyprint_server",
     "WEASYPRINT_TOOL_NAMES",
+    "create_potrace_server",
+    "POTRACE_TOOL_NAMES",
     "create_gemini_server",
     "GEMINI_TOOL_NAMES",
 ]

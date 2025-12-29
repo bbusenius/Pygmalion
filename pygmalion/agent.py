@@ -148,6 +148,7 @@ from pygmalion.tools.imagemagick import (
     create_imagemagick_server,
 )
 from pygmalion.tools.inkscape import INKSCAPE_TOOL_NAMES, create_inkscape_server
+from pygmalion.tools.potrace import POTRACE_TOOL_NAMES, create_potrace_server
 from pygmalion.tools.weasyprint import WEASYPRINT_TOOL_NAMES, create_weasyprint_server
 
 # Export public API
@@ -340,6 +341,7 @@ class DesignSession:
         + IMAGEMAGICK_TOOL_NAMES
         + GIMP_TOOL_NAMES
         + WEASYPRINT_TOOL_NAMES
+        + POTRACE_TOOL_NAMES
         + (
             GEMINI_TOOL_NAMES if is_gemini_enabled() else []
         )  # Optional AI image generation
@@ -503,6 +505,7 @@ class DesignSession:
         imagemagick_server = create_imagemagick_server()
         gimp_server = create_gimp_server()
         weasyprint_server = create_weasyprint_server()
+        potrace_server = create_potrace_server()
 
         # Conditionally create Gemini server if enabled
         # Gemini requires GEMINI_API_KEY and PYGMALION_GEMINI_ENABLED=true
@@ -537,6 +540,7 @@ class DesignSession:
             "imagemagick": imagemagick_server,
             "gimp": gimp_server,
             "weasyprint": weasyprint_server,
+            "potrace": potrace_server,
         }
         # Add Gemini if enabled
         if gemini_server:

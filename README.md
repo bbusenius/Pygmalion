@@ -55,7 +55,7 @@ Pygmalion uses skills to guide Claude's design work. Skills in Pygmalion's `.cla
 
 ### Bundled Skills
 
-**logo-design** - Creates distinctive, professional logos with proper color variations. Generates logos in three color versions (monotone, two-color, three-color) with layout variations when appropriate. Supports all logo types: wordmarks, lettermarks, iconographic, combination marks, and emblems. Outputs an HTML presentation showing all variations.
+**logo-design** - Creates distinctive, professional logos with proper color variations. Generates logos in three color versions (monotone, two-color, three-color) with layout variations when appropriate. Supports all logo types: wordmarks, lettermarks, iconographic, combination marks, and emblems. Includes Potrace bitmap tracing to convert raster images (PNG, JPG) to clean vector graphics for logo icons. Automatically invokes frontend-design skill for typography guidance. Outputs both editable versions (text as text) and delivery versions (text converted to outlines for perfect browser rendering), plus an HTML presentation showing all variations.
 
 **print-design** - Creates print-ready designs (posters, flyers, business cards, resumes) using HTML/WeasyPrint or SVG/Inkscape. Includes guidance on full bleed layouts, WeasyPrint CSS limitations, and proper text handling.
 
@@ -88,6 +88,44 @@ Run `pygmalion` and type `/status`. You should see your installed skills:
 ```
 Skills: frontend-design, logo-design, print-design
 ```
+
+### Logo Design with Bitmap Tracing
+
+Create professional logos using bitmap tracing workflow (generate bitmap → trace to vector):
+
+```
+🎨 You: Invoke the logo-design skill and design me a logo for Volcano Adventures,
+       a volcano tour company in Antigua, Guatemala. The brand should feel bold
+       and adventurous. Generate a high-contrast black and white volcano
+       illustration with Gemini, then trace it to SVG.
+
+🤖 Pygmalion: [Invokes frontend-design skill for typography guidance]
+              [Generates volcano illustration bitmap using Gemini]
+              [Traces the bitmap to vector using Potrace]
+              [Optimizes viewBox with Inkscape for tight bounding]
+              [Creates logo with traced volcano icon and distinctive typography]
+              [Generates all color variations: monotone, two-color, three-color]
+              [Creates layout variations: horizontal, vertical, icon-only]
+              [Converts text to outlines for browser-safe rendering]
+              [Opens presentation HTML showing all variations]
+
+Files created:
+- volcano_traced.svg (optimized vector from bitmap)
+- logo_monotone_horizontal_editable.svg (editable version, text as text)
+- logo_monotone_horizontal.svg (delivery version, text as paths)
+- logo_two_color_horizontal.svg
+- logo_three_color_horizontal.svg
+- logo_monotone_vertical.svg
+- logo_icon_only.svg
+- logo_presentation.html
+```
+
+The bitmap tracing workflow:
+1. Generate or provide a raster image (via Gemini, photo, sketch)
+2. Convert to vector using Potrace
+3. Optimize viewBox with Inkscape for tight bounding
+4. Integrate into logo with professional typography
+5. Output editable (text) and delivery (outlined) versions
 
 ## Usage
 
@@ -279,8 +317,9 @@ Pygmalion provides user-friendly error messages with suggestions:
 ### System Dependencies
 
 - Python 3.10+
-- Inkscape (for vector graphics)
-- ImageMagick (for image processing)
+- Inkscape (for vector graphics and text-to-outlines conversion)
+- Potrace (for bitmap tracing - converts raster images to vector graphics)
+- ImageMagick (for image processing and format conversion)
 - GIMP (for advanced raster editing)
 - Chrome with Claude Code extension (for web preview)
 

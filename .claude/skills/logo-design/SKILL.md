@@ -32,15 +32,50 @@ Choose the type that best fits the brand's needs, usage contexts, and name chara
 
 ## Typography Guidelines
 
-**If the frontend-design skill is installed**, reference it for comprehensive typography guidance.
+**BEFORE SELECTING FONTS: Check if the frontend-design skill exists using the Skill tool with skill="frontend-design"**
+- If it exists: **MANDATORY** - invoke it to get expert typography guidance
+- If it doesn't exist: proceed with the guidelines below
+
+### Forbidden Fonts
+
+**ABSOLUTELY NEVER use these fonts in logos - they are generic, overused, and unprofessional:**
+- Arial, Arial Black, Arial Narrow
+- Impact
+- Helvetica, Helvetica Neue
+- Times New Roman, Times
+- Verdana, Tahoma
+- Georgia
+- Comic Sans (obviously)
+- Default sans-serif, serif, or monospace
+
+**Using any of these fonts is a critical failure.** Logos with these fonts look amateurish and forgettable.
+
+### Font Discovery
+
+Before selecting fonts, check what's available on the system:
+```bash
+fc-list : family | sort -u
+```
+
+Pick distinctive fonts from the results. Common good options on Linux:
+- **Bold/display**: Oswald, Bebas Neue, Liberation Sans Bold, Noto Sans Black
+- **Elegant**: Liberation Serif, Noto Serif, DejaVu Serif
+- **Clean**: Ubuntu, Cantarell, Liberation Sans
+
+### Font Selection
 
 For logo typography specifically:
 
-- **Avoid generic fonts**: Never use Arial, Helvetica, Times New Roman, or overused display fonts
-- **Match tone to brand**: Geometric sans for tech, serifs for elegance, hand-drawn for artisan
-- **Consider custom letterforms**: Modify existing glyphs or create custom characters when it elevates the design
-- **Kerning matters**: Adjust letter spacing meticulously - default kerning is rarely optimal
-- **Weight and proportion**: Choose weights that work at all sizes; thin strokes may disappear at small sizes
+- **Font must be distinctive and intentional**: Choose typefaces that match brand personality
+- **Use only fonts installed on the system**: Run `fc-list` to check availability
+- **Match tone to brand**:
+  - Bold/adventurous: Condensed sans with strong character
+  - Elegant/refined: Serifs with finesse
+  - Tech/modern: Geometric sans
+  - Hand-crafted: Display fonts with personality
+- **Consider custom letterforms**: Modify existing glyphs or create custom characters
+- **Kerning matters**: Adjust letter spacing meticulously
+- **Weight and proportion**: Choose weights that work at all sizes
 
 **For wordmarks and lettermarks**, typography IS the logo. Every curve, terminal, and proportion must be intentional.
 
@@ -107,66 +142,159 @@ Every logo must work at:
 - **Header size**: 200px wide (full detail visible)
 - **Large format**: 1000px+ (no quality loss, clean edges)
 
-## Generating Graphical Elements with AI
+## Generating Graphical Elements
 
-**When the gemini_generate_svg tool is available**, it can be used to generate complex graphical elements for logos. This is particularly useful for organic shapes, illustrations, or intricate iconography that would be tedious to code by hand.
+**Two approaches for generating graphical elements:**
 
-### When to Use Gemini SVG Generation
+1. **AI-generated SVG** (`gemini_generate_svg`): Direct SVG code generation
+2. **Bitmap tracing** (`trace_bitmap`): Convert raster images to SVG vectors
 
-Use `gemini_generate_svg` for:
+Choose based on the design requirements and available resources.
+
+### Approach 1: AI-Generated SVG (Gemini)
+
+**When the gemini_generate_svg tool is available**, it can generate SVG code directly from text descriptions.
+
+**Use `gemini_generate_svg` for:**
 - **Complex organic shapes**: Natural forms, flowing curves, illustrated elements
 - **Intricate iconography**: Detailed symbols that are hard to code geometrically
 - **Initial concepts**: Quick exploration of visual directions
 - **One-off elements**: When you need a specific graphical component
 
-**The tool generates a single graphical element** - not the complete logo or color variations. You are still responsible for:
-- Composing the icon with typography (for combination marks)
-- Creating all three color variations (monotone, two-color, three-color) from the base element
-- Generating layout variations (horizontal, vertical, abbreviated)
-- Building the presentation page
-- Testing at all sizes
+**CRITICAL: Always request monotone (single color) SVGs from Gemini.** The tool produces ONE graphical element in a single color. You then manually create the three color variations.
 
-### When NOT to Use Gemini SVG Generation
-
-Generate SVG code directly (without the tool) for:
-- **Wordmarks and lettermarks**: Typography-only logos (the tool isn't needed)
-- **Simple geometric icons**: Circles, triangles, squares, basic shapes
-- **Precise technical logos**: When mathematical precision is required
-- **Maximum control**: When you need exact control over every path and node
-
-### Using the Tool
-
-**CRITICAL: Always request monotone (single color) SVGs from Gemini.** The tool produces ONE graphical element in a single color. You will then manually create the three color variations by modifying the SVG colors.
-
-When using `gemini_generate_svg`:
-1. **Request monotone output**: Include "single color", "monotone", or "black only" in your prompt
-2. Provide a specific, detailed prompt describing the icon/mark
-3. Specify the style (minimal, geometric, organic, detailed, flat)
-4. Use an appropriate viewBox size (100-200 for logos)
-5. The tool returns a single SVG file with the graphical element in one color
-6. You then create three copies with different color schemes (monotone, two-color, three-color)
-7. Compose with typography, generate layout variations, and build the presentation
-
-**Example prompt for Gemini:**
+**Example Gemini prompt:**
 ```
 "A minimalist mountain icon with three peaks, clean geometric shapes,
 single color black (#000000), suitable for a coffee company logo"
 ```
 
-**Example workflow:**
-```
-User: Design a logo for Mountain Coffee Co.
+### Approach 2: Bitmap Tracing (Potrace)
 
-1. Use gemini_generate_svg with monotone request → get mountain-icon.svg (black)
-2. Create three color versions:
+**When the trace_bitmap tool is available**, it can convert raster images (PNG, JPG, BMP) to clean SVG vectors. This mirrors the traditional designer workflow of tracing bitmap references.
+
+**Use `trace_bitmap` for:**
+- **User-provided images**: When the user says "I have an image I want traced"
+- **AI-generated bitmaps**: Generate image with Gemini, then trace to SVG
+- **Hand-drawn sketches**: Scan or photograph sketches, then trace
+- **Existing bitmap logos**: Convert legacy raster logos to scalable vectors
+- **Complex illustrations**: When bitmap generation produces better results than direct SVG
+
+**Workflow for bitmap tracing:**
+1. **Option A - User provides image**: User says "trace this image for my logo"
+2. **Option B - Generate then trace**: Use `gemini_generate_image` to create bitmap → `trace_bitmap` to vectorize
+3. Adjust tracing parameters:
+   - `turdsize`: Suppress speckles (default: 2, higher = cleaner)
+   - `turnpolicy`: Path extraction (default: minority)
+   - `alphamax`: Corner sharpness (default: 1.0, lower = sharper)
+   - `opttolerance`: Curve smoothness (default: 0.2, higher = smoother)
+4. Result is a single-color SVG
+5. Manually create three color variations
+6. Compose with typography and build presentation
+
+**Example bitmap→trace workflow:**
+```
+User: Design a logo for Mountain Coffee Co. using this mountain photo I have.
+
+1. Use trace_bitmap on user's mountain.jpg → get mountain-traced.svg (black paths)
+2. Clean/simplify the traced SVG if needed
+3. Create three color versions:
    - monotone: black mountain
    - two-color: navy mountain with brown accent
    - three-color: navy mountain, brown accent, cream highlight
-3. Code the "Mountain Coffee Co." wordmark
-4. Compose each color variation with the wordmark
-5. Generate horizontal, vertical, and abbreviated layouts for each
-6. Build presentation HTML showing all 9 versions (3 colors × 3 layouts)
+4. Code the "Mountain Coffee Co." wordmark
+5. Compose each color variation with the wordmark
+6. Generate horizontal, vertical, and abbreviated layouts
+7. Build presentation HTML showing all variations
 ```
+
+**Example generate→trace workflow:**
+```
+User: Create a logo with an organic leaf illustration.
+
+1. Use gemini_generate_image: "detailed organic leaf illustration, single leaf,
+   black and white, high contrast, clean edges, 1024x1024px"
+2. Use trace_bitmap on the generated image → get leaf-traced.svg
+3. Refine the traced paths if needed
+4. Create three color versions (monotone, two-color, three-color)
+5. Compose with brand typography
+6. Build complete presentation
+```
+
+**CRITICAL: Integrating Potrace Output**
+
+After tracing with `trace_bitmap` (which includes automatic viewBox optimization), you'll have an SVG like this:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1291.5 724" width="1291.5pt" height="724pt" ...>
+  <g transform="matrix(0.1,0,0,-0.1,-378.97,1370)" fill="#000000">
+    <path d="m 10830,13684 c -158,-41..."/>
+  </g>
+</svg>
+```
+
+The traced SVG has viewBox dimensions (e.g., 1291.5 x 724) and a matrix transform on the `<g>` element.
+
+**To compose this into a logo using `<g>` elements (allows Inkscape optimization):**
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!-- Traced icon wrapped in positioning transform -->
+  <!-- Calculate scale: desired_size / viewBox_dimension -->
+  <!-- Example: want 120px wide, viewBox is 1291.5, scale = 120/1291.5 = 0.0929 -->
+  <g transform="translate(20, 40) scale(0.0929)">
+    <!-- Copy the <g> and <path> EXACTLY from traced SVG -->
+    <g transform="matrix(0.1,0,0,-0.1,-378.97,1370)" fill="#1a1a1a">
+      <path d="m 10830,13684 c -158,-41..."/>
+    </g>
+  </g>
+
+  <!-- Typography -->
+  <text x="160" y="80" font-size="32">VOLCANO</text>
+  <text x="160" y="115" font-size="16">ADVENTURES</text>
+</svg>
+```
+
+**Key calculation steps:**
+1. **Determine desired icon size** (e.g., 120px wide)
+2. **Get traced viewBox width** from traced SVG (e.g., 1291.5)
+3. **Calculate scale** = desired_size / viewBox_width (e.g., 120 / 1291.5 = 0.0929)
+4. **Apply transform** = `translate(x_pos, y_pos) scale(calculated_scale)`
+5. **Copy the inner `<g transform="matrix(...)">` and `<path>` exactly** - don't modify them
+
+**After creating the logo, optimize viewBox with Inkscape:**
+```bash
+inkscape logo.svg --export-area-drawing --export-plain-svg --export-filename=logo.svg
+```
+
+This approach:
+- ✅ Uses `<g>` elements throughout (no nested `<svg>`)
+- ✅ Preserves Potrace matrix transform exactly
+- ✅ Allows Inkscape to calculate tight bounding box correctly
+- ✅ Removes lopsided whitespace automatically
+
+**NEVER do these:**
+- ❌ Don't copy just the `<path>` element - you lose the coordinate system
+- ❌ Don't modify the inner matrix transform values - use them exactly as traced
+- ❌ Don't use nested `<svg>` - it breaks Inkscape's bounding box detection
+
+### When to Code SVG Directly
+
+Generate SVG code directly (without AI tools) for:
+- **Wordmarks and lettermarks**: Typography-only logos
+- **Simple geometric icons**: Circles, triangles, squares, basic shapes
+- **Precise technical logos**: When mathematical precision is required
+- **Maximum control**: When you need exact control over every path and node
+
+### Tool Responsibilities
+
+**Both approaches produce a single graphical element** - not the complete logo or variations. You are always responsible for:
+- Composing the icon with typography (for combination marks)
+- Creating all three color variations (monotone, two-color, three-color) from the base element
+- Generating layout variations (horizontal, vertical, abbreviated)
+- Building the presentation page
+- Testing at all sizes
 
 ## Anti-patterns
 
@@ -190,14 +318,97 @@ User: Design a logo for Mountain Coffee Co.
 
 ## Workflow
 
+**Phase 1: Setup and Typography**
 1. **Understand requirements**: Brand name, industry, tone, usage contexts
-2. **Choose conceptual direction**: Pick a clear aesthetic approach
-3. **Select logo type**: Wordmark, icon, combination, etc.
-4. **Create base SVG design**: The core logo in full color
-5. **Generate color variations**: Monotone, two-color, three-color versions
-6. **Create layout variations**: Horizontal, vertical, abbreviated (when appropriate)
-7. **Build presentation page**: HTML showing all versions together
-8. **Test at multiple sizes**: Verify legibility from favicon to large format
+2. **Check for frontend-design skill**: Use Skill tool to see if it exists
+3. **If frontend-design exists**: INVOKE IT for typography guidance (MANDATORY)
+4. **Choose conceptual direction**: Pick a clear aesthetic approach based on typography guidance
+5. **Select logo type**: Wordmark, icon, combination, etc.
+
+**Phase 2: Create Editable Versions**
+6. **Create base SVG design**: WITHOUT viewBox, using distinctive fonts (NO forbidden fonts)
+7. **Generate all variations**: Monotone, two-color, three-color, horizontal, vertical, icon-only
+8. **Save all as editable**: All files saved with `_editable.svg` suffix, text as text
+
+**Phase 3: Convert to Delivery Versions**
+9. **For EACH editable file**:
+   - Run Inkscape to convert text to outlines
+   - Run Inkscape to optimize viewBox
+   - Save as final delivery version (without `_editable` suffix)
+
+**Phase 4: Presentation**
+10. **Build presentation page**: HTML showing final delivery versions
+11. **Test at multiple sizes**: Verify legibility from favicon to large format
+
+**CRITICAL: You must create BOTH versions:**
+- **Editable versions** (`*_editable.svg`): Text as text, for future modifications
+- **Delivery versions** (`*.svg`): Text converted to outlines, perfect rendering everywhere
+
+**If you skip the text-to-outlines conversion, logos will have rendering issues in browsers.**
+
+## Converting Text to Outlines
+
+**CRITICAL**: Convert all text to paths before delivery to ensure consistent rendering across browsers and platforms.
+
+### Workflow for Each Logo Variant
+
+**Step 1: Create editable version with text**
+```bash
+# Write the SVG with text elements (no viewBox)
+# Save as: logo_monotone_horizontal_editable.svg
+```
+
+**Step 2: Convert text to outlines**
+```bash
+inkscape logo_monotone_horizontal_editable.svg \
+  --actions="select-all:text;object-to-path" \
+  --export-plain-svg \
+  --export-filename=logo_monotone_horizontal_temp.svg
+```
+
+**Step 3: Optimize viewBox**
+```bash
+inkscape logo_monotone_horizontal_temp.svg \
+  --export-area-drawing \
+  --export-plain-svg \
+  --export-filename=logo_monotone_horizontal.svg
+```
+
+### Why Convert to Outlines?
+
+- **Consistent rendering**: Browsers render text differently; paths render identically everywhere
+- **No font dependencies**: Logo works without requiring fonts to be installed
+- **Prevents clipping issues**: Eliminates browser text rendering quirks
+- **Professional standard**: Industry best practice for logo delivery
+
+### What to Deliver
+
+**For presentation and use:**
+- Logos with text converted to outlines
+- Optimized viewBox
+- Clean, browser-safe rendering
+
+**For client's future edits:**
+- Editable versions with text as text (`*_editable.svg`)
+- Document which fonts were used
+
+## ViewBox Optimization
+
+**CRITICAL:** When creating composed logos with traced bitmaps, use `<g>` elements (NOT nested `<svg>`) so Inkscape can calculate bounds correctly.
+
+After converting text to outlines, optimize the viewBox using Inkscape:
+
+```bash
+inkscape input.svg --export-area-drawing --export-plain-svg --export-filename=output.svg
+```
+
+This command:
+- Calculates the tight bounding box around ALL content (icon + paths)
+- Adds the correct viewBox attribute
+- Removes excess whitespace
+- Ensures consistent sizing
+
+**Apply this to EVERY logo file** (monotone, two-color, three-color, horizontal, vertical, abbreviated) AFTER converting text to outlines.
 
 ## Presentation Format
 
