@@ -142,6 +142,14 @@ Every logo must work at:
 - **Header size**: 200px wide (full detail visible)
 - **Large format**: 1000px+ (no quality loss, clean edges)
 
+**CRITICAL: Maintain Aspect Ratio**
+
+Logos and icons must NEVER be distorted when resized. All resizing must maintain the original proportions:
+- Never squash or stretch a logo to fit a space
+- Scale proportionally only - if you reduce width by 50%, reduce height by 50%
+- Use CSS/SVG `preserveAspectRatio` when embedding
+- If a space requires different proportions, create a purpose-built layout variation instead of distorting the existing logo
+
 ## Generating Graphical Elements
 
 **Two approaches for generating graphical elements:**
