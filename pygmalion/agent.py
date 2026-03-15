@@ -363,16 +363,11 @@ class DesignSession:
         )  # Optional Grok integration (image gen + vision)
     )
 
-    # Available Claude models
-    # Use model aliases for convenience, SDK accepts both aliases and full IDs
-    AVAILABLE_MODELS = {
-        "opus": "claude-opus-4-5-20251101",
-        "sonnet": "claude-sonnet-4-20250514",
-        "haiku": "claude-3-5-haiku-20241022",
-    }
+    # Model aliases accepted by the Claude CLI, which resolves them to the
+    # latest version automatically. Full model IDs are also accepted.
+    KNOWN_ALIASES = {"opus", "sonnet", "haiku"}
 
     # Default model for high-quality design work
-    # Use Claude Sonnet 4 for best balance of quality and speed
     DEFAULT_MODEL = "sonnet"
 
     def __init__(
@@ -411,19 +406,12 @@ class DesignSession:
         self._allowed_tools = allowed_tools or self.DEFAULT_TOOLS.copy()
         self._autonomy_mode = autonomy_mode or get_default_autonomy_mode()
 
-        # Resolve model alias to full model ID
-        model_key = model or self.DEFAULT_MODEL
-        if model_key in self.AVAILABLE_MODELS:
-            self._model = self.AVAILABLE_MODELS[model_key]
-            self._model_alias = model_key
-        else:
-            # Assume it's a full model ID
-            self._model = model_key
-            # Try to find alias for display
-            self._model_alias = next(
-                (k for k, v in self.AVAILABLE_MODELS.items() if v == model_key),
-                model_key
-            )
+        # Store the model string as-is (alias or full ID).
+        # The Claude CLI resolves aliases to the latest version.
+        self._model = model or self.DEFAULT_MODEL
+        self._model_alias = self._model if self._model in self.KNOWN_ALIASES else self._model
+        # Populated from the first AssistantMessage with the exact model ID
+        self._resolved_model: str | None = None
         self._client: ClaudeSDKClient | None = None
         self._session_id: str | None = None
         self._message_count = 0
@@ -461,18 +449,13 @@ class DesignSession:
 
     @property
     def model(self) -> str:
-        """Get the model being used for this session."""
-        return self._model
+        """Get the resolved model ID, or the alias/ID passed at init if not yet resolved."""
+        return self._resolved_model or self._model
 
     @property
     def model_alias(self) -> str:
         """Get the model alias (opus, sonnet, haiku) or full ID if no alias."""
         return self._model_alias
-
-    @classmethod
-    def get_available_models(cls) -> dict[str, str]:
-        """Get available models and their full IDs."""
-        return cls.AVAILABLE_MODELS.copy()
 
     async def connect(self) -> None:
         """
@@ -725,6 +708,10 @@ Never say just "I created index.html" - always include the full path.
         async for message in self._client.receive_response():
             logger.debug(f"Received message type: {type(message).__name__}")
             if isinstance(message, AssistantMessage):
+                # Capture the resolved model ID from the first response
+                if not self._resolved_model and message.model:
+                    self._resolved_model = message.model
+                    logger.info(f"Resolved model: {message.model}")
                 for block in message.content:
                     if isinstance(block, TextBlock):
                         yield ("text", block.text)

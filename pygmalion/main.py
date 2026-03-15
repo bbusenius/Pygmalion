@@ -99,9 +99,9 @@ Output Directory:
 
 Model Selection:
   Choose which Claude model to use with --model:
-    pygmalion --model opus    # Claude Opus 4.5 (most capable)
-    pygmalion --model sonnet  # Claude Sonnet 4 (default, balanced)
-    pygmalion --model haiku   # Claude Haiku 3.5 (fastest)
+    pygmalion --model opus    # Claude Opus (most capable)
+    pygmalion --model sonnet  # Claude Sonnet (default, balanced)
+    pygmalion --model haiku   # Claude Haiku (fastest)
 
 Debug Mode:
   Run with --debug flag for verbose logging:
@@ -176,7 +176,7 @@ Session Status:
   Connected:     {session.is_connected}
   Messages:      {session.message_count}
   Mode:          {mode_name} ({mode_desc})
-  Model:         {session.model_alias} ({session.model})
+  Model:         {session.model_alias}{f" ({session.model})" if session.model != session.model_alias else ""}
   Output Dir:    {working_dir}
   Built-in:      {builtin_list}
   MCP Tools:     {mcp_list}
@@ -263,10 +263,13 @@ async def run_cli(output_dir: str = None, model: str = None):
         working_dir=working_dir, autonomy_mode=autonomy_mode, model=model
     )
 
+    auth_method = "API key" if os.environ.get("ANTHROPIC_API_KEY") else "Claude Code CLI (OAuth)"
+
     print("\nType /help for available commands, or just start designing!")
     print(f"Output directory: {working_dir}")
     print(f"Model: {session.model_alias} (use --model to change)")
-    print(f"Mode: {autonomy_mode.name} (use /mode to change)\n")
+    print(f"Mode: {autonomy_mode.name} (use /mode to change)")
+    print(f"Auth: {auth_method}\n")
 
     try:
         logger.info(
@@ -489,8 +492,7 @@ def main():
         "--model",
         type=str,
         default=None,
-        choices=["opus", "sonnet", "haiku"],
-        help="Claude model to use: opus, sonnet (default), or haiku",
+        help="Claude model: opus, sonnet (default), haiku, or a full model ID",
     )
     args = parser.parse_args()
 

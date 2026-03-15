@@ -35,19 +35,25 @@ pip install -e ".[all]"
 
 Pygmalion uses the Claude Agent SDK, which supports multiple authentication methods:
 
-### Option 1: Claude Code CLI (Recommended)
-If you have Claude Code installed, authentication is automatic:
-```bash
-claude  # Opens interactive auth if needed
-```
+### Option 1: API Key (Recommended)
 
-### Option 2: API Key
 Set your Anthropic API key:
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-api03-...
 ```
 
 Or create a `.env` file (copy from `.env.example`).
+
+Get an API key at [console.anthropic.com](https://console.anthropic.com/).
+
+### Option 2: Claude Code CLI (OAuth)
+
+If you have Claude Code installed, authentication can happen automatically via OAuth:
+```bash
+claude  # Opens interactive auth if needed
+```
+
+> **Warning:** Anthropic has been known to ban accounts for using OAuth authentication (via Claude Code or any personal plan) to power third-party tools or automated agents. If you use this method, you risk having your account suspended. The API key method (Option 1) is the safe and supported approach for programmatic use.
 
 ## Skills
 
@@ -144,18 +150,26 @@ If you don't specify `--output-dir`, Pygmalion will prompt you for a directory w
 
 ### Model Selection
 
-Choose which Claude model to use with the `--model` flag:
+Choose which Claude model to use with the `--model` flag. Aliases automatically resolve to the latest version:
 
 ```bash
-# Use Claude Opus 4.5 (most capable, best for complex designs)
+# Use Claude Opus (most capable, best for complex designs)
 pygmalion --model opus
 
-# Use Claude Sonnet 4.5 (default, balanced performance)
+# Use Claude Sonnet (default, balanced performance)
 pygmalion --model sonnet
 
-# Use Claude Haiku 3.5 (fastest, good for simple tasks)
+# Use Claude Haiku (fastest, good for simple tasks)
 pygmalion --model haiku
 ```
+
+To pin a specific model version, pass the full model ID:
+
+```bash
+pygmalion --model claude-sonnet-4-5-20250514
+```
+
+Available model IDs can be found in the [Anthropic API documentation](https://docs.anthropic.com/en/docs/about-claude/models).
 
 You can also change models during a session with the `/model` command.
 
